@@ -90,19 +90,19 @@ async function fetchOFF(barcode) {
 async function handleBarcode(barcode) {
   currentBarcode = barcode;
   stopScanner();
-  showStatus('Ищу в Open Food Facts…', false, 0);
+  showStatus(`Код: ${barcode} — ищу в OFF…`, false, 0);
   try {
     const data = await fetchOFF(barcode);
-    $('status').classList.add('hidden');
-
     if (data.status === 0 || !data.product?.nutriments?.['energy-kcal_100g']) {
+      $('status').classList.add('hidden');
       showNotFound(barcode);
       return;
     }
+    $('status').classList.add('hidden');
     showCard(data.product, barcode);
   } catch (e) {
     console.error(e);
-    showStatus('Ошибка запроса к OFF: ' + e.message, true, 4000);
+    showStatus(`OFF ошибка (${barcode}): ${e.message}`, true, 6000);
     showNotFound(barcode);
   }
 }

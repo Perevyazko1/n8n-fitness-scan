@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Сканер штрихкодов</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div id="scanner" class="screen active">
+  <video id="video" playsinline muted></video>
+  <div class="overlay">
+    <div class="frame"></div>
+    <p class="hint">Наведи камеру на штрихкод</p>
+  </div>
+</div>
+
+<div id="card" class="screen">
+  <div class="card">
+    <h2 id="prod-name">—</h2>
+    <p id="prod-brand" class="muted"></p>
+    <p id="prod-kcal" class="big"></p>
+    <p id="prod-macros" class="macros"></p>
+    <p id="prod-barcode" class="muted small"></p>
+
+    <div class="grams-row">
+      <label>Грамм:</label>
+      <input id="grams" type="number" min="1" step="1" value="100" />
+    </div>
+    <p id="computed" class="computed"></p>
+
+    <button id="btn-eat" class="primary">Съел</button>
+    <button id="btn-save" class="secondary">В продукты</button>
+    <button id="btn-rescan" class="ghost">Сканировать ещё</button>
+  </div>
+</div>
+
+<div id="notfound" class="screen">
+  <div class="card">
+    <h2>Не нашли в базе</h2>
+    <p class="muted">Штрихкод: <span id="nf-barcode"></span></p>
+    <p>Описание</p>
+    <input id="nf-name" placeholder="Название (например: Творог Дмитровский 9%)" />
+    <div class="grid">
+      <div><label>ккал/100г</label><input id="nf-kcal" type="number" min="0" step="1" /></div>
+      <div><label>белок</label><input id="nf-protein" type="number" min="0" step="0.1" /></div>
+      <div><label>жир</label><input id="nf-fat" type="number" min="0" step="0.1" /></div>
+      <div><label>углеводы</label><input id="nf-carbs" type="number" min="0" step="0.1" /></div>
+    </div>
+    <div class="grams-row">
+      <label>Стандартная порция, г:</label>
+      <input id="nf-serving" type="number" min="1" step="1" />
+    </div>
+    <button id="btn-save-manual" class="primary">Сохранить в продукты</button>
+    <button id="btn-rescan2" class="ghost">Назад к сканеру</button>
+  </div>
+</div>
+
+<div id="status" class="status hidden"></div>
+
+<script src="main.js"></script>
+</body>
+</html>

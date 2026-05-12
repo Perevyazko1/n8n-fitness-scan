@@ -11,10 +11,20 @@
 <body>
 
 <div id="scanner" class="screen active">
-  <video id="video" playsinline muted></video>
+  <video id="video" playsinline muted autoplay></video>
   <div class="overlay">
     <div class="frame"></div>
     <p class="hint">Наведи камеру на штрихкод</p>
+    <button id="btn-manual" class="ghost manual-btn">Ввести цифры вручную</button>
+  </div>
+</div>
+
+<div id="manual" class="screen">
+  <div class="card">
+    <h2>Штрихкод цифрами</h2>
+    <input id="manual-code" type="tel" inputmode="numeric" pattern="\d*" placeholder="например 3017620422003" />
+    <button id="btn-manual-go" class="primary">Найти</button>
+    <button id="btn-manual-back" class="ghost">Назад к камере</button>
   </div>
 </div>
 

@@ -14,7 +14,7 @@ let currentBarcode = null;
 
 // === UI helpers ===
 const $ = id => document.getElementById(id);
-const screens = { scanner: $('scanner'), card: $('card'), notfound: $('notfound') };
+const screens = { scanner: $('scanner'), card: $('card'), notfound: $('notfound'), manual: $('manual') };
 
 function showScreen(name) {
   Object.values(screens).forEach(s => s.classList.remove('active'));
@@ -31,29 +31,51 @@ function showStatus(text, isError = false, timeout = 2500) {
 
 // === ZXing scanner ===
 async function startScanner() {
-  if (!codeReader) codeReader = new ZXingBrowser.BrowserMultiFormatReader();
   scanning = true;
   showScreen('scanner');
+
+  // Подсказки: только штрихкоды товаров (EAN-13/8, UPC-A/E), быстрее и точнее.
+  const hints = new Map();
+  const fmts = ZXingBrowser.BarcodeFormat
+    ? [ZXingBrowser.BarcodeFormat.EAN_13, ZXingBrowser.BarcodeFormat.EAN_8,
+       ZXingBrowser.BarcodeFormat.UPC_A,  ZXingBrowser.BarcodeFormat.UPC_E]
+    : null;
+  if (fmts && ZXingBrowser.DecodeHintType) {
+    hints.set(ZXingBrowser.DecodeHintType.POSSIBLE_FORMATS, fmts);
+    hints.set(ZXingBrowser.DecodeHintType.TRY_HARDER, true);
+  }
+
   try {
-    const devices = await ZXingBrowser.BrowserMultiFormatReader.listVideoInputDevices();
-    const back = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
-    await codeReader.decodeFromVideoDevice(back?.deviceId, 'video', (result, err) => {
-      if (!result || !scanning) return;
-      const code = result.getText();
-      if (!/^\d{8,14}$/.test(code)) return; // только EAN/UPC
-      scanning = false;
-      tg?.HapticFeedback?.notificationOccurred?.('success');
-      handleBarcode(code);
+    codeReader = new ZXingBrowser.BrowserMultiFormatReader(hints, 100);
+    showStatus('Включаю камеру…', false, 0);
+
+    const constraints = {
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    };
+
+    await codeReader.decodeFromConstraints(constraints, $('video'), (result, err) => {
+      if (!scanning) return;
+      if (result) {
+        const code = result.getText();
+        scanning = false;
+        tg?.HapticFeedback?.notificationOccurred?.('success');
+        $('status').classList.add('hidden');
+        handleBarcode(code);
+      }
+      // err каждые ~80мс на «ничего не нашли» — это норма, не показываем.
     });
+
+    showStatus('Наведи на штрихкод…', false, 0);
   } catch (e) {
     console.error(e);
-    showStatus('Не удалось открыть камеру: ' + e.message, true, 5000);
+    showStatus('Камера: ' + (e.message || e.name || 'ошибка'), true, 6000);
   }
 }
 
 function stopScanner() {
   scanning = false;
-  if (codeReader) codeReader.reset();
+  try { codeReader?.reset?.(); } catch {}
 }
 
 // === Open Food Facts lookup ===
@@ -188,6 +210,19 @@ $('btn-eat').addEventListener('click', () => postWebhook(eatPayload()));
 $('btn-save').addEventListener('click', () => postWebhook(savePayload()));
 $('btn-rescan').addEventListener('click', startScanner);
 $('btn-rescan2').addEventListener('click', startScanner);
+
+$('btn-manual').addEventListener('click', () => {
+  stopScanner();
+  $('manual-code').value = '';
+  showScreen('manual');
+  setTimeout(() => $('manual-code').focus(), 100);
+});
+$('btn-manual-back').addEventListener('click', startScanner);
+$('btn-manual-go').addEventListener('click', () => {
+  const code = $('manual-code').value.trim();
+  if (!/^\d{6,14}$/.test(code)) { showStatus('Введи 6-14 цифр штрихкода', true); return; }
+  handleBarcode(code);
+});
 
 $('btn-save-manual').addEventListener('click', () => {
   const name = $('nf-name').value.trim();

@@ -23,7 +23,7 @@ function showScreen(name) {
 
 function showStatus(text, isError = false, timeout = 2500) {
   const el = $('status');
-  el.textContent = text;
+  el.innerHTML = text; // допускаем простой HTML (для спиннера)
   el.classList.remove('hidden', 'error');
   if (isError) el.classList.add('error');
   if (timeout) setTimeout(() => el.classList.add('hidden'), timeout);
@@ -150,21 +150,52 @@ function round(v, d = 1) {
 }
 
 // === POST на n8n webhook ===
-async function postWebhook(payload) {
-  showStatus('Отправляю…', false, 0);
+let inFlight = false;
+const _btnState = new WeakMap();
+
+function setBusy(busy, activeBtn) {
+  inFlight = busy;
+  document.querySelectorAll('button').forEach(b => b.disabled = busy);
+  if (busy && activeBtn) {
+    _btnState.set(activeBtn, activeBtn.innerHTML);
+    activeBtn.innerHTML = '<span class="spinner"></span> Отправляю…';
+  } else if (!busy) {
+    document.querySelectorAll('button').forEach(b => {
+      const orig = _btnState.get(b);
+      if (orig) { b.innerHTML = orig; _btnState.delete(b); }
+    });
+  }
+}
+
+async function postWebhook(payload, activeBtn) {
+  if (inFlight) return;
+  setBusy(true, activeBtn);
+  showStatus('<span class="spinner"></span> Отправляю…', false, 0);
   try {
     // Content-Type text/plain намеренно — чтоб не было CORS preflight (OPTIONS).
-    const r = await fetch(WEBHOOK_URL, {
+    const r = await withMinDelay(fetch(WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ initData: INIT_DATA, ...payload }),
-    });
+    }));
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const out = await r.json().catch(() => ({}));
-    showStatus(out.message || 'Готово', false, 1500);
+    showStatus('✓ ' + (out.message || 'Готово'), false, 1500);
     setTimeout(() => tg?.close?.(), 1500);
   } catch (e) {
     showStatus('Ошибка: ' + e.message, true, 4000);
+    setBusy(false);
+  }
+}
+
+// Минимальная задержка чтобы спиннер было видно даже на быстрых ответах
+const MIN_SPIN_MS = 500;
+async function withMinDelay(promise) {
+  const start = Date.now();
+  try { return await promise; }
+  finally {
+    const dt = Date.now() - start;
+    if (dt < MIN_SPIN_MS) await new Promise(r => setTimeout(r, MIN_SPIN_MS - dt));
   }
 }
 
@@ -206,8 +237,8 @@ function savePayload() {
 
 // === Handlers ===
 $('grams').addEventListener('input', recomputeEatPreview);
-$('btn-eat').addEventListener('click', () => postWebhook(eatPayload()));
-$('btn-save').addEventListener('click', () => postWebhook(savePayload()));
+$('btn-eat').addEventListener('click', (e) => postWebhook(eatPayload(), e.currentTarget));
+$('btn-save').addEventListener('click', (e) => postWebhook(savePayload(), e.currentTarget));
 $('btn-rescan').addEventListener('click', startScanner);
 $('btn-rescan2').addEventListener('click', startScanner);
 
@@ -232,7 +263,10 @@ $('btn-save-manual').addEventListener('click', () => {
   const carbs = Number($('nf-carbs').value);
   const serving = Number($('nf-serving').value) || 100;
   if (!name || !kcal) { showStatus('Заполни хотя бы название и ккал/100г', true); return; }
-  postWebhook({
+  postWebhook(_buildManualPayload(name, kcal, protein, fat, carbs, serving), $('btn-save-manual'));
+});
+function _buildManualPayload(name, kcal, protein, fat, carbs, serving) {
+  return {
     action: 'add_product',
     barcode: currentBarcode,
     name, aliases: '',
@@ -242,8 +276,8 @@ $('btn-save-manual').addEventListener('click', () => {
     carbs_per_100g: carbs,
     default_serving_g: serving,
     notes: 'добавлено вручную из сканера',
-  });
-});
+  };
+}
 
 // === Старт ===
 window.addEventListener('load', startScanner);

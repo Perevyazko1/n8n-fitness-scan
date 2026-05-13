@@ -34,3 +34,8 @@ button { padding: 14px; font-size: 16px; border: none; border-radius: 8px; curso
 .status { position: fixed; top: 16px; left: 16px; right: 16px; padding: 14px; border-radius: 8px; background: rgba(0,0,0,0.85); color: #fff; text-align: center; font-size: 14px; z-index: 100; }
 .status.error { background: #d33; }
 .status.hidden { display: none; }
+
+.spinner { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; margin-right: 6px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+button:disabled { opacity: 0.5; cursor: not-allowed; }

@@ -60,6 +60,7 @@ function goTab(name) {
   stopScanner();              // уходим с камеры — гасим её
   showScreen(name);
   if (name === 'dashboard') loadDashboard();
+  if (name === 'workout') loadWorkout();
 }
 
 // === Дашборд (Фаза 1) ===
@@ -129,6 +130,112 @@ function setMacro(key, m, unit) {
   const eaten = round(m.eaten || 0), target = Math.round(m.target || 0);
   $('bar-' + key).style.width = pct(eaten, target) + '%';
   $('val-' + key).textContent = target ? `${eaten} / ${target}${unit}` : `${eaten}${unit}`;
+}
+
+// === Тренировка (Фаза 3) ===
+let currentWorkout = null;   // { date, block_num }
+
+async function loadWorkout() {
+  $('wkt-loading').classList.remove('hidden');
+  $('wkt-error').classList.add('hidden');
+  $('wkt-rest').classList.add('hidden');
+  $('wkt-list').classList.add('hidden');
+  try {
+    const d = await api('workout-today');
+    if (d.ok === false) throw new Error(d.error || 'Не удалось загрузить');
+    renderWorkout(d);
+    $('wkt-loading').classList.add('hidden');
+  } catch (e) {
+    $('wkt-loading').classList.add('hidden');
+    const box = $('wkt-error');
+    box.textContent = e.message || 'Ошибка загрузки';
+    box.classList.remove('hidden');
+  }
+}
+
+function renderWorkout(d) {
+  currentWorkout = { date: d.date, block_num: d.block_num };
+
+  if (!d.is_workout) {
+    $('wkt-sub').textContent = '';
+    const rest = $('wkt-rest');
+    rest.textContent = (d.days_until_next != null)
+      ? `Сегодня отдых 😌 Следующая тренировка через ${d.days_until_next} дн.`
+      : 'Сегодня отдых 😌';
+    rest.classList.remove('hidden');
+    return;
+  }
+
+  const exs = d.exercises || [];
+  const doneCount = exs.filter(e => e.done).length;
+  $('wkt-sub').textContent = `${d.label} · выполнено ${doneCount} из ${exs.length}`;
+
+  const list = $('wkt-list');
+  list.innerHTML = '';
+  for (const ex of exs) list.appendChild(buildExerciseRow(ex));
+  list.classList.remove('hidden');
+}
+
+function buildExerciseRow(ex) {
+  const row = document.createElement('label');
+  row.className = 'ex' + (ex.done ? ' is-done' : '');
+
+  const main = document.createElement('div');
+  main.className = 'ex-main';
+  const name = document.createElement('div');
+  name.className = 'ex-name';
+  name.textContent = ex.exercise;
+  const sub = document.createElement('div');
+  sub.className = 'muted small';
+  const parts = [];
+  if (ex.group) parts.push(ex.group);
+  if (ex.sets && ex.reps) parts.push(`${ex.sets}×${ex.reps}`);
+  if (ex.weight) parts.push(`${ex.weight}`);
+  if (ex.note) parts.push(ex.note);
+  sub.textContent = parts.join(' · ');
+  main.appendChild(name);
+  main.appendChild(sub);
+
+  const sw = document.createElement('input');
+  sw.type = 'checkbox';
+  sw.className = 'switch';
+  sw.checked = !!ex.done;
+  sw.addEventListener('change', () => toggleExercise(ex, sw, row));
+
+  row.appendChild(main);
+  row.appendChild(sw);
+  return row;
+}
+
+async function toggleExercise(ex, sw, row) {
+  const newDone = sw.checked;
+  sw.disabled = true;
+  try {
+    const res = await api('toggle-exercise', {
+      date: currentWorkout.date,
+      block_num: currentWorkout.block_num,
+      exercise: ex.exercise,
+      done: newDone,
+    });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    ex.done = newDone;
+    row.classList.toggle('is-done', newDone);
+    tg?.HapticFeedback?.impactOccurred?.('light');
+    bumpWorkoutCount();
+  } catch (e) {
+    sw.checked = !newDone;              // откат
+    showStatus('Не сохранилось: ' + e.message, true, 3000);
+  } finally {
+    sw.disabled = false;
+  }
+}
+
+// Пересчитать «выполнено N из M» в подзаголовке без перезапроса.
+function bumpWorkoutCount() {
+  const total = document.querySelectorAll('#wkt-list .ex').length;
+  const done = document.querySelectorAll('#wkt-list .ex.is-done').length;
+  const sub = $('wkt-sub').textContent.split(' · ')[0];
+  $('wkt-sub').textContent = `${sub} · выполнено ${done} из ${total}`;
 }
 
 // === ZXing scanner ===
@@ -385,6 +492,7 @@ function _buildManualPayload(name, kcal, protein, fat, carbs, serving) {
 document.querySelectorAll('.tab').forEach(t =>
   t.addEventListener('click', () => goTab(t.dataset.tab)));
 $('dash-refresh').addEventListener('click', loadDashboard);
+$('wkt-refresh').addEventListener('click', loadWorkout);
 
 // === Старт: открываемся на главной (не на камере) ===
 window.addEventListener('load', () => goTab('dashboard'));

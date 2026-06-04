@@ -9,7 +9,7 @@
 <title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=4" />
+<link rel="stylesheet" href="styles.css?v=5" />
 </head>
 <body>
 
@@ -62,11 +62,17 @@
   </div>
 </div>
 
-<!-- ===== Тренировка (Фаза 3 — заглушка) ===== -->
+<!-- ===== Тренировка (Фаза 3) ===== -->
 <div id="workout" class="screen tab-screen">
   <div class="page">
-    <div class="page-head"><h1>Тренировка</h1></div>
-    <div class="soon">Скоро: упражнения на сегодня со свитчерами «выполнил / нет».</div>
+    <div class="page-head">
+      <div><h1>Тренировка</h1><span id="wkt-sub" class="muted small"></span></div>
+      <button id="wkt-refresh" class="icon-btn" aria-label="Обновить">⟳</button>
+    </div>
+    <div id="wkt-loading" class="loading">Загрузка…</div>
+    <div id="wkt-error" class="error-box hidden"></div>
+    <div id="wkt-rest" class="soon hidden"></div>
+    <div id="wkt-list" class="hidden"></div>
   </div>
 </div>
 
@@ -140,6 +146,6 @@
   <button class="tab" data-tab="scanner"><span class="tab-ico">📷</span>Сканер</button>
 </nav>
 
-<script src="main.js?v=4"></script>
+<script src="main.js?v=5"></script>
 </body>
 </html>

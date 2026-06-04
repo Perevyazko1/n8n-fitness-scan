@@ -1,5 +1,6 @@
 // === Конфиг ===
-const WEBHOOK_URL = 'https://n8n-fitness.ru/webhook/scan-barcode';
+const API_BASE = 'https://n8n-fitness.ru/webhook';
+const WEBHOOK_URL = `${API_BASE}/scan-barcode`;
 
 // === Telegram WebApp ===
 const tg = window.Telegram?.WebApp;
@@ -11,10 +12,14 @@ let codeReader = null;
 let scanning = false;
 let currentProduct = null;   // { name, brand, kcal100, p100, f100, c100, default_serving_g }
 let currentBarcode = null;
+let currentTab = null;       // dashboard | foodlog | workout | scanner
 
 // === UI helpers ===
 const $ = id => document.getElementById(id);
-const screens = { scanner: $('scanner'), card: $('card'), notfound: $('notfound'), manual: $('manual') };
+const screens = {
+  dashboard: $('dashboard'), foodlog: $('foodlog'), workout: $('workout'),
+  scanner: $('scanner'), card: $('card'), notfound: $('notfound'), manual: $('manual'),
+};
 
 function showScreen(name) {
   Object.values(screens).forEach(s => s.classList.remove('active'));
@@ -27,6 +32,103 @@ function showStatus(text, isError = false, timeout = 2500) {
   el.classList.remove('hidden', 'error');
   if (isError) el.classList.add('error');
   if (timeout) setTimeout(() => el.classList.add('hidden'), timeout);
+}
+
+// === Общий клиент к n8n (GET-семантика поверх POST) ===
+// text/plain намеренно — чтобы не было CORS preflight (OPTIONS).
+// initData шлём всегда — на стороне n8n по нему валидируется и достаётся chat_id.
+async function api(path, payload = {}) {
+  const r = await fetch(`${API_BASE}/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ initData: INIT_DATA, ...payload }),
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+// === Навигация по вкладкам ===
+function goTab(name) {
+  currentTab = name;
+  document.querySelectorAll('.tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.tab === name));
+
+  if (name === 'scanner') {
+    startScanner();           // сам вызовет showScreen('scanner')
+    return;
+  }
+  stopScanner();              // уходим с камеры — гасим её
+  showScreen(name);
+  if (name === 'dashboard') loadDashboard();
+}
+
+// === Дашборд (Фаза 1) ===
+async function loadDashboard() {
+  $('dash-loading').classList.remove('hidden');
+  $('dash-error').classList.add('hidden');
+  $('dash-content').classList.add('hidden');
+  try {
+    const d = await api('dashboard');
+    if (d.ok === false) {
+      const msg = d.error === 'no_profile'
+        ? 'Профиль не заполнен. Заполни его через бота — и здесь появятся цели и расход.'
+        : ('Не удалось загрузить: ' + (d.error || 'unknown'));
+      throw new Error(msg);
+    }
+    renderDashboard(d);
+    $('dash-loading').classList.add('hidden');
+    $('dash-content').classList.remove('hidden');
+  } catch (e) {
+    $('dash-loading').classList.add('hidden');
+    const box = $('dash-error');
+    box.textContent = e.message || 'Ошибка загрузки';
+    box.classList.remove('hidden');
+  }
+}
+
+function pct(part, whole) {
+  if (!whole || whole <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round(part / whole * 100)));
+}
+
+function renderDashboard(d) {
+  $('dash-date').textContent = d.date || '';
+
+  // --- Тренировка ---
+  const w = d.workout_today || {};
+  if (w.is_workout) {
+    $('wk-ico').textContent = '💪';
+    $('wk-title').textContent = 'Сегодня тренировка';
+    $('wk-sub').textContent = w.label || '';
+  } else {
+    $('wk-ico').textContent = '😌';
+    $('wk-title').textContent = 'Сегодня отдых';
+    $('wk-sub').textContent = (w.days_until_next != null)
+      ? `Следующая тренировка через ${w.days_until_next} дн` : '';
+  }
+
+  // --- Калории ---
+  const k = d.kcal || {};
+  const left = Math.round(k.left ?? 0);
+  $('kcal-left').textContent = (left >= 0 ? left : left) + ' ккал';
+  $('kcal-left').classList.toggle('over', left < 0);
+  const kbar = $('kcal-bar');
+  kbar.style.width = pct(k.eaten, k.target) + '%';
+  kbar.classList.toggle('over', (k.eaten || 0) > (k.target || 0));
+  $('kcal-sub').textContent = `${Math.round(k.eaten || 0)} из ${Math.round(k.target || 0)} ккал`
+    + (left >= 0 ? ` · осталось ${left}` : ` · перебор ${-left}`);
+
+  // --- Макросы ---
+  setMacro('protein', d.protein, 'г');
+  setMacro('fat', d.fat, 'г');
+  setMacro('carbs', d.carbs, 'г');
+}
+
+function setMacro(key, m, unit) {
+  m = m || {};
+  const eaten = round(m.eaten || 0), target = Math.round(m.target || 0);
+  $('bar-' + key).style.width = pct(eaten, target) + '%';
+  $('val-' + key).textContent = target ? `${eaten} / ${target}${unit}` : `${eaten}${unit}`;
 }
 
 // === ZXing scanner ===
@@ -279,5 +381,10 @@ function _buildManualPayload(name, kcal, protein, fat, carbs, serving) {
   };
 }
 
-// === Старт ===
-window.addEventListener('load', startScanner);
+// Таб-бар + кнопка обновления дашборда
+document.querySelectorAll('.tab').forEach(t =>
+  t.addEventListener('click', () => goTab(t.dataset.tab)));
+$('dash-refresh').addEventListener('click', loadDashboard);
+
+// === Старт: открываемся на главной (не на камере) ===
+window.addEventListener('load', () => goTab('dashboard'));

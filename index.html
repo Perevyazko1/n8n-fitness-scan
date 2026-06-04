@@ -6,14 +6,72 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
-<title>Сканер штрихкодов</title>
+<title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=3" />
+<link rel="stylesheet" href="styles.css?v=4" />
 </head>
 <body>
 
-<div id="scanner" class="screen active">
+<!-- ===== Главная (дашборд) ===== -->
+<div id="dashboard" class="screen tab-screen">
+  <div class="page">
+    <div class="page-head">
+      <div><h1>Сегодня</h1><span id="dash-date" class="muted small"></span></div>
+      <button id="dash-refresh" class="icon-btn" aria-label="Обновить">⟳</button>
+    </div>
+    <div id="dash-loading" class="loading">Загрузка…</div>
+    <div id="dash-error" class="error-box hidden"></div>
+    <div id="dash-content" class="hidden">
+
+      <div class="card stat" id="card-workout">
+        <div class="stat-row"><span class="stat-ico" id="wk-ico">🏋️</span>
+          <div><div class="stat-title" id="wk-title">—</div>
+               <div class="muted small" id="wk-sub"></div></div>
+        </div>
+      </div>
+
+      <div class="card stat" id="card-kcal">
+        <div class="stat-head"><span class="stat-label">Калории</span>
+          <span id="kcal-left" class="stat-big">—</span></div>
+        <div class="bar"><div id="kcal-bar" class="bar-fill"></div></div>
+        <div class="muted small" id="kcal-sub"></div>
+      </div>
+
+      <div class="card stat" id="card-macros">
+        <div class="macro" id="m-protein"><span class="macro-name">Белок</span>
+          <div class="bar sm"><div class="bar-fill" id="bar-protein"></div></div>
+          <span class="macro-val" id="val-protein"></span></div>
+        <div class="macro" id="m-fat"><span class="macro-name">Жиры</span>
+          <div class="bar sm"><div class="bar-fill" id="bar-fat"></div></div>
+          <span class="macro-val" id="val-fat"></span></div>
+        <div class="macro" id="m-carbs"><span class="macro-name">Углеводы</span>
+          <div class="bar sm"><div class="bar-fill" id="bar-carbs"></div></div>
+          <span class="macro-val" id="val-carbs"></span></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ===== Еда за день (Фаза 2 — заглушка) ===== -->
+<div id="foodlog" class="screen tab-screen">
+  <div class="page">
+    <div class="page-head"><h1>Еда за день</h1></div>
+    <div class="soon">Скоро: список съеденного за сегодня с суммой за день.</div>
+  </div>
+</div>
+
+<!-- ===== Тренировка (Фаза 3 — заглушка) ===== -->
+<div id="workout" class="screen tab-screen">
+  <div class="page">
+    <div class="page-head"><h1>Тренировка</h1></div>
+    <div class="soon">Скоро: упражнения на сегодня со свитчерами «выполнил / нет».</div>
+  </div>
+</div>
+
+<!-- ===== Сканер (поток: камера → карточка / не найдено / вручную) ===== -->
+<div id="scanner" class="screen">
   <video id="video" playsinline muted autoplay></video>
   <div class="overlay">
     <div class="frame"></div>
@@ -74,6 +132,14 @@
 
 <div id="status" class="status hidden"></div>
 
-<script src="main.js?v=3"></script>
+<!-- ===== Нижний таб-бар ===== -->
+<nav id="tabbar" class="tabbar">
+  <button class="tab" data-tab="dashboard"><span class="tab-ico">🏠</span>Главная</button>
+  <button class="tab" data-tab="foodlog"><span class="tab-ico">🍽️</span>Еда</button>
+  <button class="tab" data-tab="workout"><span class="tab-ico">🏋️</span>Трен</button>
+  <button class="tab" data-tab="scanner"><span class="tab-ico">📷</span>Сканер</button>
+</nav>
+
+<script src="main.js?v=4"></script>
 </body>
 </html>

@@ -4,8 +4,19 @@ const WEBHOOK_URL = `${API_BASE}/scan-barcode`;
 
 // === Telegram WebApp ===
 const tg = window.Telegram?.WebApp;
-if (tg) { tg.ready(); tg.expand(); }
+if (tg) {
+  tg.ready();
+  tg.expand();
+  // Полировка: цвет шапки под тему + защита от случайного свайпа-вниз (закрытия)
+  // при скролле списков. Всё под optional-chaining — на старых клиентах просто игнор.
+  try { tg.setHeaderColor?.('secondary_bg_color'); } catch {}
+  try { tg.setBackgroundColor?.('bg_color'); } catch {}
+  try { tg.disableVerticalSwipes?.(); } catch {}
+}
 const INIT_DATA = tg?.initData || '';
+
+// Крутим иконку обновления во время загрузки.
+function setRefreshing(btnId, on) { const b = $(btnId); if (b) b.classList.toggle('spinning', on); }
 
 // === Состояние ===
 let codeReader = null;
@@ -49,6 +60,7 @@ async function api(path, payload = {}) {
 
 // === Навигация по вкладкам ===
 function goTab(name) {
+  if (name !== currentTab) tg?.HapticFeedback?.selectionChanged?.();
   currentTab = name;
   document.querySelectorAll('.tab').forEach(t =>
     t.classList.toggle('active', t.dataset.tab === name));
@@ -69,6 +81,7 @@ async function loadDashboard() {
   $('dash-loading').classList.remove('hidden');
   $('dash-error').classList.add('hidden');
   $('dash-content').classList.add('hidden');
+  setRefreshing('dash-refresh', true);
   try {
     const d = await api('dashboard');
     if (d.ok === false) {
@@ -85,6 +98,8 @@ async function loadDashboard() {
     const box = $('dash-error');
     box.textContent = e.message || 'Ошибка загрузки';
     box.classList.remove('hidden');
+  } finally {
+    setRefreshing('dash-refresh', false);
   }
 }
 
@@ -141,6 +156,7 @@ async function loadWorkout() {
   $('wkt-error').classList.add('hidden');
   $('wkt-rest').classList.add('hidden');
   $('wkt-list').classList.add('hidden');
+  setRefreshing('wkt-refresh', true);
   try {
     const d = await api('workout-today');
     if (d.ok === false) throw new Error(d.error || 'Не удалось загрузить');
@@ -151,6 +167,8 @@ async function loadWorkout() {
     const box = $('wkt-error');
     box.textContent = e.message || 'Ошибка загрузки';
     box.classList.remove('hidden');
+  } finally {
+    setRefreshing('wkt-refresh', false);
   }
 }
 
@@ -259,6 +277,7 @@ async function loadFoodLog() {
   $('food-error').classList.add('hidden');
   $('food-empty').classList.add('hidden');
   $('food-list').classList.add('hidden');
+  setRefreshing('food-refresh', true);
   try {
     const d = await api('food-log', viewDate ? { date: viewDate } : {});
     if (d.ok === false) throw new Error(d.error || 'Не удалось загрузить');
@@ -272,6 +291,8 @@ async function loadFoodLog() {
     const box = $('food-error');
     box.textContent = e.message || 'Ошибка загрузки';
     box.classList.remove('hidden');
+  } finally {
+    setRefreshing('food-refresh', false);
   }
 }
 

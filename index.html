@@ -9,7 +9,7 @@
 <title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=8" />
+<link rel="stylesheet" href="styles.css?v=9" />
 </head>
 <body>
 
@@ -20,7 +20,11 @@
       <div><h1>Сегодня</h1><span id="dash-date" class="muted small"></span></div>
       <button id="dash-refresh" class="icon-btn" aria-label="Обновить">⟳</button>
     </div>
-    <div id="dash-loading" class="loading">Загрузка…</div>
+    <div id="dash-loading" class="skeleton">
+      <div class="skel-card"><div class="skel skel-line w40"></div><div class="skel skel-line w70"></div></div>
+      <div class="skel-card"><div class="skel skel-line w30"></div><div class="skel skel-bar"></div><div class="skel skel-line w50"></div></div>
+      <div class="skel-card"><div class="skel skel-bar"></div><div class="skel skel-bar"></div><div class="skel skel-bar"></div></div>
+    </div>
     <div id="dash-error" class="error-box hidden"></div>
     <div id="dash-content" class="hidden">
 
@@ -66,7 +70,11 @@
       <span id="food-day" class="daynav-label">—</span>
       <button id="food-next" class="nav-btn" aria-label="Следующий день">›</button>
     </div>
-    <div id="food-loading" class="loading">Загрузка…</div>
+    <div id="food-loading" class="skeleton">
+      <div class="skel-row"><div class="skel skel-line w70"></div><div class="skel skel-line w40"></div></div>
+      <div class="skel-row"><div class="skel skel-line w60"></div><div class="skel skel-line w30"></div></div>
+      <div class="skel-row"><div class="skel skel-line w80"></div><div class="skel skel-line w40"></div></div>
+    </div>
     <div id="food-error" class="error-box hidden"></div>
     <div id="food-empty" class="soon hidden">В этот день ничего не залогировано.</div>
     <div id="food-list" class="hidden"></div>
@@ -80,7 +88,12 @@
       <div><h1>Тренировка</h1><span id="wkt-sub" class="muted small"></span></div>
       <button id="wkt-refresh" class="icon-btn" aria-label="Обновить">⟳</button>
     </div>
-    <div id="wkt-loading" class="loading">Загрузка…</div>
+    <div id="wkt-loading" class="skeleton">
+      <div class="skel-row"><div class="skel skel-line w60"></div><div class="skel skel-sw"></div></div>
+      <div class="skel-row"><div class="skel skel-line w70"></div><div class="skel skel-sw"></div></div>
+      <div class="skel-row"><div class="skel skel-line w50"></div><div class="skel skel-sw"></div></div>
+      <div class="skel-row"><div class="skel skel-line w70"></div><div class="skel skel-sw"></div></div>
+    </div>
     <div id="wkt-error" class="error-box hidden"></div>
     <div id="wkt-rest" class="soon hidden"></div>
     <div id="wkt-list" class="hidden"></div>
@@ -157,6 +170,6 @@
   <button class="tab" data-tab="scanner"><span class="tab-ico">📷</span>Сканер</button>
 </nav>
 
-<script src="main.js?v=8"></script>
+<script src="main.js?v=9"></script>
 </body>
 </html>

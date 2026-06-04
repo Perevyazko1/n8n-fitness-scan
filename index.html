@@ -9,7 +9,7 @@
 <title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=5" />
+<link rel="stylesheet" href="styles.css?v=8" />
 </head>
 <body>
 
@@ -54,11 +54,22 @@
   </div>
 </div>
 
-<!-- ===== Еда за день (Фаза 2 — заглушка) ===== -->
+<!-- ===== Еда за день (Фаза 2) ===== -->
 <div id="foodlog" class="screen tab-screen">
   <div class="page">
-    <div class="page-head"><h1>Еда за день</h1></div>
-    <div class="soon">Скоро: список съеденного за сегодня с суммой за день.</div>
+    <div class="page-head">
+      <div><h1>Еда за день</h1><span id="food-sub" class="muted small"></span></div>
+      <button id="food-refresh" class="icon-btn" aria-label="Обновить">⟳</button>
+    </div>
+    <div class="daynav">
+      <button id="food-prev" class="nav-btn" aria-label="Предыдущий день">‹</button>
+      <span id="food-day" class="daynav-label">—</span>
+      <button id="food-next" class="nav-btn" aria-label="Следующий день">›</button>
+    </div>
+    <div id="food-loading" class="loading">Загрузка…</div>
+    <div id="food-error" class="error-box hidden"></div>
+    <div id="food-empty" class="soon hidden">В этот день ничего не залогировано.</div>
+    <div id="food-list" class="hidden"></div>
   </div>
 </div>
 
@@ -146,6 +157,6 @@
   <button class="tab" data-tab="scanner"><span class="tab-ico">📷</span>Сканер</button>
 </nav>
 
-<script src="main.js?v=5"></script>
+<script src="main.js?v=8"></script>
 </body>
 </html>

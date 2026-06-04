@@ -61,6 +61,7 @@ function goTab(name) {
   showScreen(name);
   if (name === 'dashboard') loadDashboard();
   if (name === 'workout') loadWorkout();
+  if (name === 'foodlog') loadFoodLog();
 }
 
 // === Дашборд (Фаза 1) ===
@@ -236,6 +237,176 @@ function bumpWorkoutCount() {
   const done = document.querySelectorAll('#wkt-list .ex.is-done').length;
   const sub = $('wkt-sub').textContent.split(' · ')[0];
   $('wkt-sub').textContent = `${sub} · выполнено ${done} из ${total}`;
+}
+
+// === Еда за день (Фаза 2) ===
+let viewDate = null;      // YYYY-MM-DD — открытый день
+let serverToday = null;   // YYYY-MM-DD — «сегодня» по серверу (из первого ответа)
+
+const pad2 = (n) => String(n).padStart(2, '0');
+const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+function addDaysStr(s, delta) { const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() + delta); return ymd(d); }
+function dayLabel(s) {
+  if (s === serverToday) return 'Сегодня';
+  if (serverToday && s === addDaysStr(serverToday, -1)) return 'Вчера';
+  const d = new Date(s + 'T00:00:00');
+  const mon = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'][d.getMonth()];
+  return `${d.getDate()} ${mon}`;
+}
+
+async function loadFoodLog() {
+  $('food-loading').classList.remove('hidden');
+  $('food-error').classList.add('hidden');
+  $('food-empty').classList.add('hidden');
+  $('food-list').classList.add('hidden');
+  try {
+    const d = await api('food-log', viewDate ? { date: viewDate } : {});
+    if (d.ok === false) throw new Error(d.error || 'Не удалось загрузить');
+    if (!serverToday) serverToday = d.date;   // первый ответ = серверное «сегодня»
+    if (!viewDate) viewDate = d.date;
+    renderFoodLog(d);
+    updateDayNav();
+    $('food-loading').classList.add('hidden');
+  } catch (e) {
+    $('food-loading').classList.add('hidden');
+    const box = $('food-error');
+    box.textContent = e.message || 'Ошибка загрузки';
+    box.classList.remove('hidden');
+  }
+}
+
+function updateDayNav() {
+  $('food-day').textContent = dayLabel(viewDate);
+  // вперёд за сегодня нельзя
+  $('food-next').disabled = !!serverToday && viewDate >= serverToday;
+}
+
+function stepDay(delta) {
+  if (!viewDate) return;
+  const next = addDaysStr(viewDate, delta);
+  if (delta > 0 && serverToday && next > serverToday) return; // не уходим в будущее
+  viewDate = next;
+  loadFoodLog();
+}
+
+let currentFood = { date: null, items: [] };
+
+function renderFoodLog(d) {
+  currentFood = { date: d.date, items: (d.items || []).slice() };
+  renderFoodList();
+}
+
+// Перерисовать список + сумму из currentFood.items (без перезапроса).
+function renderFoodList() {
+  const items = currentFood.items;
+  const list = $('food-list');
+
+  if (!items.length) {
+    $('food-sub').textContent = '';
+    list.classList.add('hidden');
+    list.innerHTML = '';
+    $('food-empty').classList.remove('hidden');
+    return;
+  }
+  $('food-empty').classList.add('hidden');
+
+  const s = items.reduce((a, i) => ({
+    kcal: a.kcal + (i.kcal || 0), protein: a.protein + (i.protein || 0),
+    fat: a.fat + (i.fat || 0), carbs: a.carbs + (i.carbs || 0),
+  }), { kcal: 0, protein: 0, fat: 0, carbs: 0 });
+  $('food-sub').textContent =
+    `${Math.round(s.kcal)} ккал · Б${round(s.protein)} · Ж${round(s.fat)} · У${round(s.carbs)}`;
+
+  list.innerHTML = '';
+  for (const it of items) list.appendChild(buildFoodRow(it));
+  list.classList.remove('hidden');
+}
+
+function buildFoodRow(it) {
+  const row = document.createElement('div');
+  row.className = 'food';
+
+  const main = document.createElement('div');
+  main.className = 'food-main';
+  const desc = document.createElement('div');
+  desc.className = 'food-desc';
+  desc.textContent = it.description || '(без описания)';
+  const sub = document.createElement('div');
+  sub.className = 'muted small';
+  const parts = [];
+  if (it.time) parts.push(it.time);
+  parts.push(`Б${round(it.protein)} · Ж${round(it.fat)} · У${round(it.carbs)}`);
+  sub.textContent = parts.join(' · ');
+  main.appendChild(desc);
+  main.appendChild(sub);
+
+  const kcal = document.createElement('div');
+  kcal.className = 'food-kcal';
+  kcal.textContent = Math.round(it.kcal || 0);
+
+  const rep = document.createElement('button');
+  rep.className = 'food-rep';
+  rep.setAttribute('aria-label', 'Повторить сегодня');
+  rep.textContent = '↻';
+  rep.addEventListener('click', () => repeatFood(it));
+
+  const del = document.createElement('button');
+  del.className = 'food-del';
+  del.setAttribute('aria-label', 'Удалить');
+  del.textContent = '✕';
+  del.addEventListener('click', () => deleteFood(it));
+
+  row.appendChild(main);
+  row.appendChild(kcal);
+  row.appendChild(rep);
+  row.appendChild(del);
+  return row;
+}
+
+async function repeatFood(it) {
+  const ok = await confirmDialog(`Добавить «${it.description || 'запись'}» в сегодня?`);
+  if (!ok) return;
+  try {
+    const res = await api('repeat-food', {
+      description: it.description || '',
+      kcal: it.kcal, protein: it.protein, fat: it.fat, carbs: it.carbs,
+    });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    if (viewDate === serverToday) loadFoodLog();   // смотрим сегодня — покажем новую запись
+    else showStatus('Добавлено в сегодня ✓', false, 1800);
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  }
+}
+
+function confirmDialog(msg) {
+  return new Promise((res) => {
+    if (tg?.showConfirm) tg.showConfirm(msg, (ok) => res(!!ok));
+    else res(window.confirm(msg));
+  });
+}
+
+async function deleteFood(it) {
+  const ok = await confirmDialog(`Удалить «${it.description || 'запись'}»?`);
+  if (!ok) return;
+
+  // оптимистично убираем из списка
+  currentFood.items = currentFood.items.filter((x) => x !== it);
+  renderFoodList();
+
+  try {
+    const res = await api('delete-food', {
+      row: it.row,
+      description: it.description || '',
+      date: currentFood.date,
+    });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+  } catch (e) {
+    showStatus('Не удалилось: ' + e.message + '. Обновляю список.', true, 3500);
+    loadFoodLog();   // вернуть правду с сервера
+  }
 }
 
 // === ZXing scanner ===
@@ -493,6 +664,9 @@ document.querySelectorAll('.tab').forEach(t =>
   t.addEventListener('click', () => goTab(t.dataset.tab)));
 $('dash-refresh').addEventListener('click', loadDashboard);
 $('wkt-refresh').addEventListener('click', loadWorkout);
+$('food-refresh').addEventListener('click', loadFoodLog);
+$('food-prev').addEventListener('click', () => stepDay(-1));
+$('food-next').addEventListener('click', () => stepDay(1));
 
 // === Старт: открываемся на главной (не на камере) ===
 window.addEventListener('load', () => goTab('dashboard'));

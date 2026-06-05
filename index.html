@@ -9,7 +9,7 @@
 <title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=13" />
+<link rel="stylesheet" href="styles.css?v=14" />
 </head>
 <body>
 
@@ -18,7 +18,10 @@
   <div class="page">
     <div class="page-head">
       <div><h1>Сегодня</h1><span id="dash-date" class="muted small"></span></div>
-      <button id="dash-refresh" class="icon-btn" aria-label="Обновить">⟳</button>
+      <div class="head-actions">
+        <button id="dash-settings" class="icon-btn" aria-label="Настройки">⚙</button>
+        <button id="dash-refresh" class="icon-btn" aria-label="Обновить">⟳</button>
+      </div>
     </div>
     <div id="dash-loading" class="skeleton">
       <div class="skel-card"><div class="skel skel-line w40"></div><div class="skel skel-line w70"></div></div>
@@ -253,6 +256,57 @@
   </div>
 </div>
 
+<!-- ===== Настройки (профиль + КБЖУ) ===== -->
+<div id="settings" class="screen tab-screen">
+  <div class="page">
+    <div class="page-head">
+      <div><h1>Настройки</h1></div>
+      <button id="set-close" class="icon-btn" aria-label="Закрыть">✕</button>
+    </div>
+    <div id="set-loading" class="loading">Загрузка…</div>
+    <div id="set-content" class="hidden">
+      <div class="card stat">
+        <div class="stat-label" style="margin-bottom:6px;">Параметры тела</div>
+        <div class="grid">
+          <div><label>Рост, см</label><input id="set-height" type="number" min="0" step="1" /></div>
+          <div><label>Вес, кг</label><input id="set-weight" type="number" min="0" step="0.1" /></div>
+          <div><label>Возраст</label><input id="set-age" type="number" min="0" step="1" /></div>
+          <div><label>Пол</label>
+            <select id="set-sex"><option value="m">Муж</option><option value="f">Жен</option></select></div>
+        </div>
+        <label>Активность</label>
+        <select id="set-activity">
+          <option value="sedentary">Сидячий образ</option>
+          <option value="light">Лёгкая</option>
+          <option value="moderate">Средняя</option>
+          <option value="active">Высокая</option>
+          <option value="very">Очень высокая</option>
+        </select>
+        <label>Цель</label>
+        <select id="set-goal">
+          <option value="lose">Похудение</option>
+          <option value="maintain">Поддержание</option>
+          <option value="gain">Набор массы</option>
+        </select>
+        <div class="grams-row"><label>Интервал тренировок, дн:</label>
+          <input id="set-interval" type="number" min="1" step="1" /></div>
+      </div>
+      <button id="set-save" class="primary">Сохранить параметры</button>
+
+      <div class="card stat">
+        <div class="stat-head"><span class="stat-label">Цель по калориям</span>
+          <span id="set-kcal" class="stat-big">—</span></div>
+        <div class="macro"><span class="macro-name">Белок</span><span class="macro-val" id="set-protein">—</span></div>
+        <div class="macro"><span class="macro-name">Жиры</span><span class="macro-val" id="set-fat">—</span></div>
+        <div class="macro"><span class="macro-name">Углеводы</span><span class="macro-val" id="set-carbs">—</span></div>
+        <div class="muted small" id="set-bmr"></div>
+      </div>
+      <p class="muted small">КБЖУ нельзя редактировать вручную — только пересчётом по параметрам тела.</p>
+      <button id="set-recalc" class="secondary">Пересчитать КБЖУ</button>
+    </div>
+  </div>
+</div>
+
 <div id="status" class="status hidden"></div>
 
 <!-- ===== Нижний таб-бар ===== -->
@@ -263,6 +317,6 @@
   <button class="tab" data-tab="scanner"><span class="tab-ico">📷</span>Сканер</button>
 </nav>
 
-<script src="main.js?v=13"></script>
+<script src="main.js?v=14"></script>
 </body>
 </html>

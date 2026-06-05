@@ -32,6 +32,7 @@ const screens = {
   dashboard: $('dashboard'), foodlog: $('foodlog'), workout: $('workout'),
   scanner: $('scanner'), card: $('card'), notfound: $('notfound'), manual: $('manual'),
   addproduct: $('addproduct'), pickproduct: $('pickproduct'), logfood: $('logfood'), exform: $('exform'),
+  settings: $('settings'),
 };
 
 function showScreen(name) {
@@ -148,6 +149,78 @@ function setMacro(key, m, unit) {
   const eaten = round(m.eaten || 0), target = Math.round(m.target || 0);
   $('bar-' + key).style.width = pct(eaten, target) + '%';
   $('val-' + key).textContent = target ? `${eaten} / ${target}${unit}` : `${eaten}${unit}`;
+}
+
+// === Настройки (профиль + КБЖУ) ===
+async function openSettings() {
+  showScreen('settings');
+  $('set-loading').classList.remove('hidden');
+  $('set-content').classList.add('hidden');
+  try {
+    const d = await api('profile');
+    if (d.ok === false) throw new Error(d.error || 'Не удалось загрузить');
+    fillSettings(d);
+    $('set-loading').classList.add('hidden');
+    $('set-content').classList.remove('hidden');
+  } catch (e) {
+    showStatus('Ошибка: ' + e.message, true, 3000);
+    goTab('dashboard');
+  }
+}
+
+function fillSettings(d) {
+  $('set-height').value = d.height_cm ?? '';
+  $('set-weight').value = d.weight_kg ?? '';
+  $('set-age').value = d.age ?? '';
+  $('set-sex').value = d.sex || 'm';
+  $('set-activity').value = d.activity_level || 'moderate';
+  $('set-goal').value = d.goal || 'maintain';
+  $('set-interval').value = d.training_days_interval ?? '';
+  renderTargets(d);
+}
+
+function renderTargets(d) {
+  $('set-kcal').textContent = (d.target_kcal != null ? d.target_kcal : '—') + ' ккал';
+  $('set-protein').textContent = d.target_protein_g != null ? `${d.target_protein_g} г` : '—';
+  $('set-fat').textContent = d.target_fat_g != null ? `${d.target_fat_g} г` : '—';
+  $('set-carbs').textContent = d.target_carbs_g != null ? `${d.target_carbs_g} г` : '—';
+  $('set-bmr').textContent = d.bmr != null
+    ? `BMR: ${d.bmr} ккал · фон: ${d.daily_baseline_kcal ?? '—'} ккал`
+    : '';
+}
+
+function settingsPayload() {
+  return {
+    height_cm: $('set-height').value, weight_kg: $('set-weight').value, age: $('set-age').value,
+    sex: $('set-sex').value, activity_level: $('set-activity').value, goal: $('set-goal').value,
+    training_days_interval: $('set-interval').value,
+  };
+}
+
+async function saveSettings() {
+  try {
+    const res = await api('profile-save', settingsPayload());
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showStatus('Сохранено ✓', false, 1500);
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  }
+}
+
+async function recalcSettings() {
+  // сначала сохраняем введённые параметры, потом считаем по свежим
+  try {
+    await api('profile-save', settingsPayload());
+    const r = await api('profile-recalc');
+    if (r.ok === false) throw new Error(r.error || 'fail');
+    const d = await api('profile');
+    fillSettings(d);
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showStatus('КБЖУ пересчитаны ✓', false, 1800);
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  }
 }
 
 // === Тренировка (Фаза 3) ===
@@ -1049,6 +1122,10 @@ function _buildManualPayload(name, kcal, protein, fat, carbs, serving) {
 document.querySelectorAll('.tab').forEach(t =>
   t.addEventListener('click', () => goTab(t.dataset.tab)));
 $('dash-refresh').addEventListener('click', loadDashboard);
+$('dash-settings').addEventListener('click', openSettings);
+$('set-close').addEventListener('click', () => goTab('dashboard'));
+$('set-save').addEventListener('click', saveSettings);
+$('set-recalc').addEventListener('click', recalcSettings);
 $('wkt-refresh').addEventListener('click', loadWorkout);
 $('wkt-prev').addEventListener('click', () => stepWktDay(-1));
 $('wkt-next').addEventListener('click', () => stepWktDay(1));

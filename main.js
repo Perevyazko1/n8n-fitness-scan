@@ -32,7 +32,7 @@ const screens = {
   dashboard: $('dashboard'), foodlog: $('foodlog'), workout: $('workout'),
   scanner: $('scanner'), card: $('card'), notfound: $('notfound'), manual: $('manual'),
   addproduct: $('addproduct'), pickproduct: $('pickproduct'), logfood: $('logfood'), exform: $('exform'),
-  settings: $('settings'),
+  settings: $('settings'), reggate: $('reggate'),
 };
 
 function showScreen(name) {
@@ -57,8 +57,21 @@ async function api(path, payload = {}) {
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({ initData: INIT_DATA, ...payload }),
   });
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  return r.json();
+  let data = null;
+  try { data = await r.json(); } catch {}
+  // не зарегистрирован → экран-блок «отправь пароль боту»
+  if (r.status === 403 && data && data.error === 'not_registered') {
+    showRegGate();
+    throw new Error('not_registered');
+  }
+  if (!r.ok) throw new Error((data && data.error) || ('HTTP ' + r.status));
+  return data;
+}
+
+function showRegGate() {
+  const tb = document.getElementById('tabbar');
+  if (tb) tb.style.display = 'none';
+  showScreen('reggate');
 }
 
 // === Навигация по вкладкам ===
@@ -1126,6 +1139,7 @@ $('dash-settings').addEventListener('click', openSettings);
 $('set-close').addEventListener('click', () => goTab('dashboard'));
 $('set-save').addEventListener('click', saveSettings);
 $('set-recalc').addEventListener('click', recalcSettings);
+$('reg-bot').addEventListener('click', () => tg?.close?.());
 $('wkt-refresh').addEventListener('click', loadWorkout);
 $('wkt-prev').addEventListener('click', () => stepWktDay(-1));
 $('wkt-next').addEventListener('click', () => stepWktDay(1));

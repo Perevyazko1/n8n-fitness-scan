@@ -31,7 +31,7 @@ const $ = id => document.getElementById(id);
 const screens = {
   dashboard: $('dashboard'), foodlog: $('foodlog'), workout: $('workout'),
   scanner: $('scanner'), card: $('card'), notfound: $('notfound'), manual: $('manual'),
-  addproduct: $('addproduct'),
+  addproduct: $('addproduct'), pickproduct: $('pickproduct'), logfood: $('logfood'), exform: $('exform'),
 };
 
 function showScreen(name) {
@@ -74,7 +74,7 @@ function goTab(name) {
   stopScanner();              // уходим с камеры — гасим её
   showScreen(name);
   if (name === 'dashboard') loadDashboard();
-  if (name === 'workout') loadWorkout();
+  if (name === 'workout') { wktEdit = false; loadWorkout(); }
   if (name === 'foodlog') setFoodMode('diary');
 }
 
@@ -151,7 +151,10 @@ function setMacro(key, m, unit) {
 }
 
 // === Тренировка (Фаза 3) ===
-let currentWorkout = null;     // { date, block_num, is_workout }
+let currentWorkout = null;     // { date, block_num }
+let currentExercises = [];     // упражнения текущего блока (для редактирования)
+let wktEdit = false;           // режим «изменить план»
+let exEditing = null;          // упражнение в форме (null = новое)
 let wktViewDate = null;        // YYYY-MM-DD — открытый день
 let wktServerToday = null;     // серверное «сегодня»
 
@@ -162,6 +165,8 @@ async function loadWorkout(forcedBlock) {
   $('wkt-rest').classList.add('hidden');
   $('wkt-list').classList.add('hidden');
   $('wkt-complete').classList.add('hidden');
+  $('wkt-addex').classList.add('hidden');
+  $('wkt-edit').classList.add('hidden');
   setRefreshing('wkt-refresh', true);
   try {
     const payload = {};
@@ -212,7 +217,8 @@ function stepWktDay(delta) {
 }
 
 function renderWorkout(d) {
-  currentWorkout = { date: d.date, block_num: d.selected_block };
+  currentWorkout = { date: d.date, block_num: d.selected_block, label: d.label };
+  currentExercises = d.exercises || [];
   renderWktBlocks(d);
 
   if (!d.selected_block) {
@@ -220,6 +226,8 @@ function renderWorkout(d) {
     $('wkt-sub').textContent = '';
     $('wkt-list').classList.add('hidden');
     $('wkt-complete').classList.add('hidden');
+    $('wkt-addex').classList.add('hidden');
+    $('wkt-edit').classList.add('hidden');
     const hint = $('wkt-rest');
     hint.textContent = (d.is_today && d.rest_hint_days != null)
       ? 'Сегодня отдых 😌. Если всё же потренировался — выбери блок выше, чтобы отметить.'
@@ -229,15 +237,111 @@ function renderWorkout(d) {
   }
 
   $('wkt-rest').classList.add('hidden');
-  const exs = d.exercises || [];
+  const exs = currentExercises;
   const doneCount = exs.filter(e => e.done).length;
-  $('wkt-sub').textContent = `${d.label} · выполнено ${doneCount} из ${exs.length}`;
+  $('wkt-sub').textContent = wktEdit
+    ? `${d.label} · редактирование плана`
+    : `${d.label} · выполнено ${doneCount} из ${exs.length}`;
 
   const list = $('wkt-list');
   list.innerHTML = '';
-  for (const ex of exs) list.appendChild(buildExerciseRow(ex));
+  for (const ex of exs) list.appendChild(wktEdit ? buildExerciseEditRow(ex) : buildExerciseRow(ex));
   list.classList.remove('hidden');
-  $('wkt-complete').classList.remove('hidden');
+
+  $('wkt-edit').textContent = wktEdit ? 'Готово' : 'Изменить план';
+  $('wkt-edit').classList.remove('hidden');
+  $('wkt-addex').classList.toggle('hidden', !wktEdit);
+  $('wkt-complete').classList.toggle('hidden', wktEdit);
+}
+
+// Строка упражнения в режиме редактирования (карандаш + удалить вместо свитчера).
+function buildExerciseEditRow(ex) {
+  const row = document.createElement('div');
+  row.className = 'ex';
+  const main = document.createElement('div');
+  main.className = 'ex-main';
+  const name = document.createElement('div');
+  name.className = 'ex-name';
+  name.textContent = ex.exercise;
+  const sub = document.createElement('div');
+  sub.className = 'muted small';
+  const parts = [];
+  if (ex.group) parts.push(ex.group);
+  if (ex.sets && ex.reps) parts.push(`${ex.sets}×${ex.reps}`);
+  if (ex.weight) parts.push(ex.weight);
+  sub.textContent = parts.join(' · ');
+  main.appendChild(name);
+  main.appendChild(sub);
+
+  const edit = document.createElement('button');
+  edit.className = 'food-rep';
+  edit.setAttribute('aria-label', 'Изменить');
+  edit.textContent = '✎';
+  edit.addEventListener('click', () => openExForm(ex));
+
+  const del = document.createElement('button');
+  del.className = 'food-del';
+  del.setAttribute('aria-label', 'Удалить');
+  del.textContent = '✕';
+  del.addEventListener('click', () => exDelete(ex));
+
+  row.appendChild(main);
+  row.appendChild(edit);
+  row.appendChild(del);
+  return row;
+}
+
+function toggleWktEdit() {
+  wktEdit = !wktEdit;
+  loadWorkout(currentWorkout.block_num);   // перерисуем тот же блок в новом режиме
+}
+
+function openExForm(ex) {
+  exEditing = ex || null;
+  $('exf-title').textContent = ex ? 'Изменить упражнение' : 'Новое упражнение';
+  $('exf-group').value = ex?.group || '';
+  $('exf-name').value = ex?.exercise || '';
+  $('exf-sets').value = ex?.sets || '';
+  $('exf-reps').value = ex?.reps || '';
+  $('exf-weight').value = ex?.weight || '';
+  $('exf-note').value = ex?.note || '';
+  showScreen('exform');
+}
+
+async function exfSave() {
+  const name = $('exf-name').value.trim();
+  if (!name) { showStatus('Впиши название упражнения', true); return; }
+  try {
+    const res = await api('exercise-save', {
+      id: exEditing?.db_id,
+      block_num: currentWorkout.block_num,
+      group: $('exf-group').value.trim(),
+      exercise: name,
+      sets: $('exf-sets').value.trim(),
+      reps: $('exf-reps').value.trim(),
+      weight: $('exf-weight').value.trim(),
+      note: $('exf-note').value.trim(),
+    });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showScreen('workout');
+    loadWorkout(currentWorkout.block_num);
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  }
+}
+
+async function exDelete(ex) {
+  const okc = await confirmDialog(`Удалить «${ex.exercise}» из плана?`);
+  if (!okc) return;
+  try {
+    const res = await api('exercise-delete', { id: ex.db_id });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    loadWorkout(currentWorkout.block_num);
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  }
 }
 
 async function completeWorkout() {
@@ -431,6 +535,86 @@ async function apSave() {
     goTab('foodlog');
   } catch (err) {
     showStatus('Не вышло: ' + err.message, true, 3000);
+  }
+}
+
+// --- Быстро добавить еду из «Моих продуктов» ---
+let lfProduct = null;
+let _ppItems = [];
+
+async function openPickProduct() {
+  showScreen('pickproduct');
+  $('pp-search').value = '';
+  $('pp-empty').classList.add('hidden');
+  $('pp-list').innerHTML = '<div class="loading">Загрузка…</div>';
+  try {
+    const d = await api('products');
+    _ppItems = d.items || [];
+    renderPickList('');
+  } catch (e) {
+    $('pp-list').innerHTML = '';
+    showStatus('Ошибка: ' + e.message, true, 3000);
+  }
+}
+
+function renderPickList(q) {
+  const list = $('pp-list');
+  if (!_ppItems.length) { $('pp-empty').classList.remove('hidden'); list.innerHTML = ''; return; }
+  const f = (q || '').trim().toLowerCase();
+  const items = f ? _ppItems.filter(p => (p.name || '').toLowerCase().includes(f)) : _ppItems;
+  list.innerHTML = '';
+  for (const p of items) {
+    const row = document.createElement('div');
+    row.className = 'food pick';
+    const main = document.createElement('div');
+    main.className = 'food-main';
+    const nm = document.createElement('div'); nm.className = 'food-desc'; nm.textContent = p.name;
+    const sub = document.createElement('div'); sub.className = 'muted small';
+    sub.textContent = `${round(p.kcal_per_100g)} ккал/100г`;
+    main.appendChild(nm); main.appendChild(sub);
+    row.appendChild(main);
+    row.addEventListener('click', () => openLogFood(p));
+    list.appendChild(row);
+  }
+}
+
+function openLogFood(p) {
+  lfProduct = p;
+  $('lf-name').textContent = p.name;
+  $('lf-per100').textContent =
+    `${round(p.kcal_per_100g)} ккал · Б${round(p.protein_per_100g)} · Ж${round(p.fat_per_100g)} · У${round(p.carbs_per_100g)} на 100г`;
+  $('lf-grams').value = p.default_serving_g || 100;
+  lfUpdatePreview();
+  showScreen('logfood');
+}
+
+function lfUpdatePreview() {
+  const g = Number($('lf-grams').value) || 0;
+  const p = lfProduct;
+  if (!p || !g) { $('lf-preview').textContent = ''; return; }
+  const m = v => round((Number(v) || 0) * g / 100);
+  $('lf-add').textContent = `Добавить ${g}г → ${m(p.kcal_per_100g)} ккал`;
+  $('lf-preview').textContent = `${m(p.kcal_per_100g)} ккал · Б${m(p.protein_per_100g)} · Ж${m(p.fat_per_100g)} · У${m(p.carbs_per_100g)}`;
+}
+
+async function lfAdd() {
+  const g = Number($('lf-grams').value) || 0;
+  const p = lfProduct;
+  if (!p || !g) { showStatus('Впиши граммы', true); return; }
+  const m = v => round((Number(v) || 0) * g / 100);
+  try {
+    const res = await api('repeat-food', {
+      date: viewDate || serverToday,
+      description: `${p.name} ${g}г`,
+      kcal: m(p.kcal_per_100g), protein: m(p.protein_per_100g),
+      fat: m(p.fat_per_100g), carbs: m(p.carbs_per_100g),
+    });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showStatus('Добавлено в дневник ✓', false, 1500);
+    goTab('foodlog');
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
   }
 }
 
@@ -657,6 +841,7 @@ async function startScanner() {
 function stopScanner() {
   scanning = false;
   try { codeReader?.reset?.(); } catch {}
+  $('status').classList.add('hidden');   // не оставляем висящий статус при уходе со сканера
 }
 
 // === Open Food Facts lookup ===
@@ -868,6 +1053,10 @@ $('wkt-refresh').addEventListener('click', loadWorkout);
 $('wkt-prev').addEventListener('click', () => stepWktDay(-1));
 $('wkt-next').addEventListener('click', () => stepWktDay(1));
 $('wkt-complete').addEventListener('click', completeWorkout);
+$('wkt-edit').addEventListener('click', toggleWktEdit);
+$('wkt-addex').addEventListener('click', () => openExForm(null));
+$('exf-save').addEventListener('click', exfSave);
+$('exf-cancel').addEventListener('click', () => showScreen('workout'));
 $('food-refresh').addEventListener('click', () => (foodMode === 'products' ? loadProducts() : loadFoodLog()));
 $('food-prev').addEventListener('click', () => stepDay(-1));
 $('food-next').addEventListener('click', () => stepDay(1));
@@ -876,6 +1065,12 @@ document.querySelectorAll('.seg-btn').forEach(b =>
 $('ap-grams').addEventListener('input', apUpdatePreview);
 $('ap-save').addEventListener('click', apSave);
 $('ap-cancel').addEventListener('click', () => goTab('foodlog'));
+$('food-add-from').addEventListener('click', openPickProduct);
+$('pp-close').addEventListener('click', () => goTab('foodlog'));
+$('pp-search').addEventListener('input', (e) => renderPickList(e.target.value));
+$('lf-grams').addEventListener('input', lfUpdatePreview);
+$('lf-add').addEventListener('click', lfAdd);
+$('lf-cancel').addEventListener('click', () => showScreen('pickproduct'));
 
 // === Старт: открываемся на главной (не на камере) ===
 window.addEventListener('load', () => goTab('dashboard'));

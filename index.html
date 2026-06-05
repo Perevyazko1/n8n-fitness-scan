@@ -9,7 +9,7 @@
 <title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=12" />
+<link rel="stylesheet" href="styles.css?v=13" />
 </head>
 <body>
 
@@ -77,6 +77,7 @@
         <span id="food-day" class="daynav-label">—</span>
         <button id="food-next" class="nav-btn" aria-label="Следующий день">›</button>
       </div>
+      <button id="food-add-from" class="secondary">＋ Добавить из продуктов</button>
       <div id="food-loading" class="skeleton">
         <div class="skel-row"><div class="skel skel-line w70"></div><div class="skel skel-line w40"></div></div>
         <div class="skel-row"><div class="skel skel-line w60"></div><div class="skel skel-line w30"></div></div>
@@ -123,7 +124,9 @@
     <div id="wkt-blocks" class="blocks hidden"></div>
     <div id="wkt-rest" class="soon hidden"></div>
     <div id="wkt-list" class="hidden"></div>
+    <button id="wkt-addex" class="secondary hidden">＋ Добавить упражнение</button>
     <button id="wkt-complete" class="primary hidden">Завершить тренировку</button>
+    <button id="wkt-edit" class="ghost hidden">Изменить план</button>
   </div>
 </div>
 
@@ -204,6 +207,52 @@
   </div>
 </div>
 
+<!-- ===== Выбор продукта для добавления в дневник ===== -->
+<div id="pickproduct" class="screen tab-screen">
+  <div class="page">
+    <div class="page-head">
+      <div><h1>Из продуктов</h1></div>
+      <button id="pp-close" class="icon-btn" aria-label="Закрыть">✕</button>
+    </div>
+    <input id="pp-search" placeholder="поиск по названию…" />
+    <div id="pp-empty" class="soon hidden">Нет сохранённых продуктов. Добавь их из дневника кнопкой «＋».</div>
+    <div id="pp-list"></div>
+  </div>
+</div>
+
+<!-- ===== Граммовка для добавления продукта в дневник ===== -->
+<div id="logfood" class="screen">
+  <div class="card">
+    <h2 id="lf-name">—</h2>
+    <p id="lf-per100" class="muted small"></p>
+    <div class="grams-row"><label>Грамм:</label><input id="lf-grams" type="number" min="1" step="1" /></div>
+    <p id="lf-preview" class="computed"></p>
+    <button id="lf-add" class="primary">Добавить в дневник</button>
+    <button id="lf-cancel" class="ghost">Назад</button>
+  </div>
+</div>
+
+<!-- ===== Форма упражнения (добавить/изменить) ===== -->
+<div id="exform" class="screen">
+  <div class="card">
+    <h2 id="exf-title">Упражнение</h2>
+    <label>Группа мышц</label>
+    <input id="exf-group" placeholder="например: Грудь" />
+    <label>Упражнение</label>
+    <input id="exf-name" placeholder="например: Жим лёжа" />
+    <div class="grid">
+      <div><label>Подходы</label><input id="exf-sets" placeholder="4" /></div>
+      <div><label>Повторы</label><input id="exf-reps" placeholder="8-10" /></div>
+    </div>
+    <label>Вес</label>
+    <input id="exf-weight" placeholder="например: 60кг" />
+    <label>Заметка</label>
+    <input id="exf-note" placeholder="необязательно" />
+    <button id="exf-save" class="primary">Сохранить</button>
+    <button id="exf-cancel" class="ghost">Отмена</button>
+  </div>
+</div>
+
 <div id="status" class="status hidden"></div>
 
 <!-- ===== Нижний таб-бар ===== -->
@@ -214,6 +263,6 @@
   <button class="tab" data-tab="scanner"><span class="tab-ico">📷</span>Сканер</button>
 </nav>
 
-<script src="main.js?v=12"></script>
+<script src="main.js?v=13"></script>
 </body>
 </html>

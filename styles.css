@@ -105,6 +105,10 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .chip { width: auto; flex: 0 0 auto; margin: 0; padding: 8px 14px; border-radius: 18px; font-size: 14px; background: var(--card-bg); color: var(--tg-theme-text-color, #000); }
 .chip.active { background: var(--tg-theme-button-color, #2481cc); color: var(--tg-theme-button-text-color, #fff); }
 
+.food.pick { cursor: pointer; }
+.food.pick:active { background: var(--tg-theme-bg-color, rgba(0,0,0,0.08)); }
+#pp-search { margin-bottom: 12px; }
+
 /* ===================== Упражнения (Фаза 3) ===================== */
 .ex { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 16px; background: var(--card-bg); border-radius: var(--radius); margin-bottom: 10px; cursor: pointer; }
 .ex-main { min-width: 0; }

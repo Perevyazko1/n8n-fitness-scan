@@ -9,7 +9,7 @@
 <title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=15" />
+<link rel="stylesheet" href="styles.css?v=16" />
 </head>
 <body>
 
@@ -274,7 +274,7 @@
           <div><label>Пол</label>
             <select id="set-sex"><option value="m">Муж</option><option value="f">Жен</option></select></div>
         </div>
-        <label>Активность</label>
+        <label>Активность (образ жизни, без тренировок)</label>
         <select id="set-activity">
           <option value="sedentary">Сидячий образ</option>
           <option value="light">Лёгкая</option>
@@ -294,14 +294,15 @@
       <button id="set-save" class="primary">Сохранить параметры</button>
 
       <div class="card stat">
-        <div class="stat-head"><span class="stat-label">Цель по калориям</span>
+        <div class="stat-head"><span class="stat-label">Базовая цель / день</span>
           <span id="set-kcal" class="stat-big">—</span></div>
         <div class="macro"><span class="macro-name">Белок</span><span class="macro-val" id="set-protein">—</span></div>
         <div class="macro"><span class="macro-name">Жиры</span><span class="macro-val" id="set-fat">—</span></div>
         <div class="macro"><span class="macro-name">Углеводы</span><span class="macro-val" id="set-carbs">—</span></div>
         <div class="muted small" id="set-bmr"></div>
       </div>
-      <p class="muted small">КБЖУ нельзя редактировать вручную — только пересчётом по параметрам тела.</p>
+      <p class="muted small">Это цель на день БЕЗ активности (BMR + фон × цель). На дашборде сверху
+        добавляются твои ходьба и тренировки. Фон зависит от «Активности». КБЖУ — только пересчётом.</p>
       <button id="set-recalc" class="secondary">Пересчитать КБЖУ</button>
     </div>
   </div>
@@ -327,6 +328,6 @@
   <button class="tab" data-tab="scanner"><span class="tab-ico">📷</span>Сканер</button>
 </nav>
 
-<script src="main.js?v=15"></script>
+<script src="main.js?v=16"></script>
 </body>
 </html>

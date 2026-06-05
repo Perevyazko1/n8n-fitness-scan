@@ -1,5 +1,6 @@
 // === Конфиг ===
-const API_BASE = 'https://n8n-fitness.ru/webhook';
+// Новый Django-API (переезд с n8n-вебхуков). Пути те же, префикс /webhook → /api.
+const API_BASE = 'https://n8n-fitness.ru/api';
 const WEBHOOK_URL = `${API_BASE}/scan-barcode`;
 
 // === Telegram WebApp ===
@@ -149,18 +150,24 @@ function setMacro(key, m, unit) {
 }
 
 // === Тренировка (Фаза 3) ===
-let currentWorkout = null;   // { date, block_num }
+let currentWorkout = null;     // { date, block_num, is_workout }
+let wktViewDate = null;        // YYYY-MM-DD — открытый день
+let wktServerToday = null;     // серверное «сегодня»
 
 async function loadWorkout() {
   $('wkt-loading').classList.remove('hidden');
   $('wkt-error').classList.add('hidden');
   $('wkt-rest').classList.add('hidden');
   $('wkt-list').classList.add('hidden');
+  $('wkt-complete').classList.add('hidden');
   setRefreshing('wkt-refresh', true);
   try {
-    const d = await api('workout-today');
+    const d = await api('workout-today', wktViewDate ? { date: wktViewDate } : {});
     if (d.ok === false) throw new Error(d.error || 'Не удалось загрузить');
+    if (!wktServerToday) wktServerToday = d.date;
+    if (!wktViewDate) wktViewDate = d.date;
     renderWorkout(d);
+    updateWktDayNav();
     $('wkt-loading').classList.add('hidden');
   } catch (e) {
     $('wkt-loading').classList.add('hidden');
@@ -172,15 +179,28 @@ async function loadWorkout() {
   }
 }
 
+function updateWktDayNav() {
+  $('wkt-day').textContent = dayLabel(wktViewDate, wktServerToday);
+  $('wkt-next').disabled = !!wktServerToday && wktViewDate >= wktServerToday;
+}
+
+function stepWktDay(delta) {
+  if (!wktViewDate) return;
+  const next = addDaysStr(wktViewDate, delta);
+  if (delta > 0 && wktServerToday && next > wktServerToday) return;
+  wktViewDate = next;
+  loadWorkout();
+}
+
 function renderWorkout(d) {
-  currentWorkout = { date: d.date, block_num: d.block_num };
+  currentWorkout = { date: d.date, block_num: d.block_num, is_workout: d.is_workout };
 
   if (!d.is_workout) {
     $('wkt-sub').textContent = '';
     const rest = $('wkt-rest');
     rest.textContent = (d.days_until_next != null)
-      ? `Сегодня отдых 😌 Следующая тренировка через ${d.days_until_next} дн.`
-      : 'Сегодня отдых 😌';
+      ? `Отдых 😌 Следующая тренировка через ${d.days_until_next} дн.`
+      : 'Отдых 😌';
     rest.classList.remove('hidden');
     return;
   }
@@ -193,6 +213,22 @@ function renderWorkout(d) {
   list.innerHTML = '';
   for (const ex of exs) list.appendChild(buildExerciseRow(ex));
   list.classList.remove('hidden');
+  $('wkt-complete').classList.remove('hidden');   // фиксация тренировки (только трен-день)
+}
+
+async function completeWorkout() {
+  const btn = $('wkt-complete');
+  btn.disabled = true;
+  try {
+    const res = await api('complete-workout', { date: currentWorkout.date });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showStatus('Тренировка зафиксирована ✓', false, 1800);
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function buildExerciseRow(ex) {
@@ -264,9 +300,9 @@ let serverToday = null;   // YYYY-MM-DD — «сегодня» по сервер
 const pad2 = (n) => String(n).padStart(2, '0');
 const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 function addDaysStr(s, delta) { const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() + delta); return ymd(d); }
-function dayLabel(s) {
-  if (s === serverToday) return 'Сегодня';
-  if (serverToday && s === addDaysStr(serverToday, -1)) return 'Вчера';
+function dayLabel(s, srvToday) {
+  if (s === srvToday) return 'Сегодня';
+  if (srvToday && s === addDaysStr(srvToday, -1)) return 'Вчера';
   const d = new Date(s + 'T00:00:00');
   const mon = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'][d.getMonth()];
   return `${d.getDate()} ${mon}`;
@@ -297,7 +333,7 @@ async function loadFoodLog() {
 }
 
 function updateDayNav() {
-  $('food-day').textContent = dayLabel(viewDate);
+  $('food-day').textContent = dayLabel(viewDate, serverToday);
   // вперёд за сегодня нельзя
   $('food-next').disabled = !!serverToday && viewDate >= serverToday;
 }
@@ -417,11 +453,7 @@ async function deleteFood(it) {
   renderFoodList();
 
   try {
-    const res = await api('delete-food', {
-      row: it.row,
-      description: it.description || '',
-      date: currentFood.date,
-    });
+    const res = await api('delete-food', { id: it.id });
     if (res.ok === false) throw new Error(res.error || 'fail');
     tg?.HapticFeedback?.notificationOccurred?.('success');
   } catch (e) {
@@ -685,6 +717,9 @@ document.querySelectorAll('.tab').forEach(t =>
   t.addEventListener('click', () => goTab(t.dataset.tab)));
 $('dash-refresh').addEventListener('click', loadDashboard);
 $('wkt-refresh').addEventListener('click', loadWorkout);
+$('wkt-prev').addEventListener('click', () => stepWktDay(-1));
+$('wkt-next').addEventListener('click', () => stepWktDay(1));
+$('wkt-complete').addEventListener('click', completeWorkout);
 $('food-refresh').addEventListener('click', loadFoodLog);
 $('food-prev').addEventListener('click', () => stepDay(-1));
 $('food-next').addEventListener('click', () => stepDay(1));

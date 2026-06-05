@@ -154,15 +154,19 @@ let currentWorkout = null;     // { date, block_num, is_workout }
 let wktViewDate = null;        // YYYY-MM-DD — открытый день
 let wktServerToday = null;     // серверное «сегодня»
 
-async function loadWorkout() {
+async function loadWorkout(forcedBlock) {
   $('wkt-loading').classList.remove('hidden');
   $('wkt-error').classList.add('hidden');
+  $('wkt-blocks').classList.add('hidden');
   $('wkt-rest').classList.add('hidden');
   $('wkt-list').classList.add('hidden');
   $('wkt-complete').classList.add('hidden');
   setRefreshing('wkt-refresh', true);
   try {
-    const d = await api('workout-today', wktViewDate ? { date: wktViewDate } : {});
+    const payload = {};
+    if (wktViewDate) payload.date = wktViewDate;
+    if (forcedBlock) payload.block = forcedBlock;
+    const d = await api('workout-today', payload);
     if (d.ok === false) throw new Error(d.error || 'Не удалось загрузить');
     if (!wktServerToday) wktServerToday = d.date;
     if (!wktViewDate) wktViewDate = d.date;
@@ -179,6 +183,20 @@ async function loadWorkout() {
   }
 }
 
+// Чипы выбора блока (№1–№4). Тап → перезагрузка с этим блоком.
+function renderWktBlocks(d) {
+  const box = $('wkt-blocks');
+  box.innerHTML = '';
+  for (const b of (d.blocks || [])) {
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (b.block_num === d.selected_block ? ' active' : '');
+    chip.textContent = b.label;
+    chip.addEventListener('click', () => loadWorkout(b.block_num));
+    box.appendChild(chip);
+  }
+  box.classList.toggle('hidden', !(d.blocks && d.blocks.length));
+}
+
 function updateWktDayNav() {
   $('wkt-day').textContent = dayLabel(wktViewDate, wktServerToday);
   $('wkt-next').disabled = !!wktServerToday && wktViewDate >= wktServerToday;
@@ -193,18 +211,23 @@ function stepWktDay(delta) {
 }
 
 function renderWorkout(d) {
-  currentWorkout = { date: d.date, block_num: d.block_num, is_workout: d.is_workout };
+  currentWorkout = { date: d.date, block_num: d.selected_block };
+  renderWktBlocks(d);
 
-  if (!d.is_workout) {
+  if (!d.selected_block) {
+    // блок не выбран — просим выбрать (работает для любого дня, в т.ч. задним числом)
     $('wkt-sub').textContent = '';
-    const rest = $('wkt-rest');
-    rest.textContent = (d.days_until_next != null)
-      ? `Отдых 😌 Следующая тренировка через ${d.days_until_next} дн.`
-      : 'Отдых 😌';
-    rest.classList.remove('hidden');
+    $('wkt-list').classList.add('hidden');
+    $('wkt-complete').classList.add('hidden');
+    const hint = $('wkt-rest');
+    hint.textContent = (d.is_today && d.rest_hint_days != null)
+      ? 'Сегодня отдых 😌. Если всё же потренировался — выбери блок выше, чтобы отметить.'
+      : 'Выбери блок выше, чтобы отметить тренировку за этот день.';
+    hint.classList.remove('hidden');
     return;
   }
 
+  $('wkt-rest').classList.add('hidden');
   const exs = d.exercises || [];
   const doneCount = exs.filter(e => e.done).length;
   $('wkt-sub').textContent = `${d.label} · выполнено ${doneCount} из ${exs.length}`;
@@ -213,14 +236,14 @@ function renderWorkout(d) {
   list.innerHTML = '';
   for (const ex of exs) list.appendChild(buildExerciseRow(ex));
   list.classList.remove('hidden');
-  $('wkt-complete').classList.remove('hidden');   // фиксация тренировки (только трен-день)
+  $('wkt-complete').classList.remove('hidden');
 }
 
 async function completeWorkout() {
   const btn = $('wkt-complete');
   btn.disabled = true;
   try {
-    const res = await api('complete-workout', { date: currentWorkout.date });
+    const res = await api('complete-workout', { date: currentWorkout.date, block: currentWorkout.block_num });
     if (res.ok === false) throw new Error(res.error || 'fail');
     tg?.HapticFeedback?.notificationOccurred?.('success');
     showStatus('Тренировка зафиксирована ✓', false, 1800);

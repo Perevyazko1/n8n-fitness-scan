@@ -100,6 +100,11 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .macro-name { font-size: 13px; color: var(--tg-theme-hint-color, #999); }
 .macro-val { font-size: 13px; font-variant-numeric: tabular-nums; }
 
+/* выбор блока тренировки (чипы №1–№4; перебиваем base button{width:100%}) */
+.blocks { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.chip { width: auto; flex: 0 0 auto; margin: 0; padding: 8px 14px; border-radius: 18px; font-size: 14px; background: var(--card-bg); color: var(--tg-theme-text-color, #000); }
+.chip.active { background: var(--tg-theme-button-color, #2481cc); color: var(--tg-theme-button-text-color, #fff); }
+
 /* ===================== Упражнения (Фаза 3) ===================== */
 .ex { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 16px; background: var(--card-bg); border-radius: var(--radius); margin-bottom: 10px; cursor: pointer; }
 .ex-main { min-width: 0; }

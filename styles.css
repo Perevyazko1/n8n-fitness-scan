@@ -124,7 +124,14 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .food-desc { font-size: 16px; font-weight: 600; word-break: break-word; }
 .food-kcal { flex: 0 0 auto; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .food-kcal::after { content: ' ккал'; font-size: 12px; font-weight: 400; color: var(--tg-theme-hint-color, #999); }
+/* сегмент-переключатель Дневник / Мои продукты */
+.seg { display: flex; gap: 4px; background: var(--card-bg); border-radius: 12px; padding: 4px; margin-bottom: 14px; }
+.seg-btn { flex: 1; width: auto; margin: 0; padding: 8px; border-radius: 9px; font-size: 14px; background: transparent; color: var(--tg-theme-hint-color, #999); }
+.seg-btn.active { background: var(--tg-theme-button-color, #2481cc); color: var(--tg-theme-button-text-color, #fff); font-weight: 600; }
+
 /* кнопки на строке (перебиваем базовый button{width:100%}) */
+.food-add { width: 32px; height: 32px; flex: 0 0 auto; margin: 0; padding: 0; border-radius: 50%; font-size: 17px; line-height: 1; background: transparent; color: var(--tg-theme-hint-color, #999); }
+.food-add:active { background: var(--tg-theme-bg-color, rgba(0,0,0,0.08)); color: var(--tg-theme-button-color, #2481cc); }
 .food-rep, .food-del { width: 32px; height: 32px; flex: 0 0 auto; margin: 0; padding: 0; border-radius: 50%; font-size: 15px; line-height: 1; background: transparent; color: var(--tg-theme-hint-color, #999); }
 .food-rep:active { background: var(--tg-theme-bg-color, rgba(0,0,0,0.08)); color: var(--tg-theme-button-color, #2481cc); }
 .food-del { font-size: 13px; }

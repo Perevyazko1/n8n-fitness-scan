@@ -31,6 +31,7 @@ const $ = id => document.getElementById(id);
 const screens = {
   dashboard: $('dashboard'), foodlog: $('foodlog'), workout: $('workout'),
   scanner: $('scanner'), card: $('card'), notfound: $('notfound'), manual: $('manual'),
+  addproduct: $('addproduct'),
 };
 
 function showScreen(name) {
@@ -74,7 +75,7 @@ function goTab(name) {
   showScreen(name);
   if (name === 'dashboard') loadDashboard();
   if (name === 'workout') loadWorkout();
-  if (name === 'foodlog') loadFoodLog();
+  if (name === 'foodlog') setFoodMode('diary');
 }
 
 // === Дашборд (Фаза 1) ===
@@ -316,6 +317,123 @@ function bumpWorkoutCount() {
   $('wkt-sub').textContent = `${sub} · выполнено ${done} из ${total}`;
 }
 
+// === Еда: режимы (дневник / мои продукты) ===
+let foodMode = 'diary';
+
+function setFoodMode(mode) {
+  foodMode = mode;
+  document.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  $('food-diary').classList.toggle('hidden', mode !== 'diary');
+  $('food-products').classList.toggle('hidden', mode !== 'products');
+  if (mode === 'diary') loadFoodLog(); else loadProducts();
+}
+
+// --- Мои продукты (справочник, что бот знает) ---
+async function loadProducts() {
+  $('prod-loading').classList.remove('hidden');
+  $('prod-error').classList.add('hidden');
+  $('prod-empty').classList.add('hidden');
+  $('prod-list').classList.add('hidden');
+  $('food-sub').textContent = '';
+  setRefreshing('food-refresh', true);
+  try {
+    const d = await api('products');
+    if (d.ok === false) throw new Error(d.error || 'Не удалось загрузить');
+    renderProducts(d.items || []);
+    $('prod-loading').classList.add('hidden');
+  } catch (e) {
+    $('prod-loading').classList.add('hidden');
+    $('prod-error').textContent = e.message || 'Ошибка загрузки';
+    $('prod-error').classList.remove('hidden');
+  } finally {
+    setRefreshing('food-refresh', false);
+  }
+}
+
+function renderProducts(items) {
+  const list = $('prod-list');
+  if (!items.length) {
+    $('prod-empty').classList.remove('hidden');
+    list.classList.add('hidden');
+    return;
+  }
+  $('prod-empty').classList.add('hidden');
+  $('food-sub').textContent = `${items.length} продукт(ов)`;
+  list.innerHTML = '';
+  for (const p of items) {
+    const row = document.createElement('div');
+    row.className = 'food';
+    const main = document.createElement('div');
+    main.className = 'food-main';
+    const nm = document.createElement('div');
+    nm.className = 'food-desc';
+    nm.textContent = p.name || '(без названия)';
+    const sub = document.createElement('div');
+    sub.className = 'muted small';
+    const parts = [`${round(p.kcal_per_100g)} ккал/100г`];
+    if (p.protein_per_100g != null) parts.push(`Б${round(p.protein_per_100g)}`);
+    if (p.fat_per_100g != null) parts.push(`Ж${round(p.fat_per_100g)}`);
+    if (p.carbs_per_100g != null) parts.push(`У${round(p.carbs_per_100g)}`);
+    sub.textContent = parts.join(' · ');
+    main.appendChild(nm);
+    main.appendChild(sub);
+    row.appendChild(main);
+    list.appendChild(row);
+  }
+  list.classList.remove('hidden');
+}
+
+// --- Добавить позицию дневника в «Мои продукты» ---
+let apEntry = null;
+
+function parseGrams(desc) {
+  const m = String(desc || '').match(/(\d+(?:[.,]\d+)?)\s*г\b/);
+  return m ? Number(m[1].replace(',', '.')) : null;
+}
+
+function openAddProduct(it) {
+  apEntry = it;
+  const grams = parseGrams(it.description);
+  const name = String(it.description || '').replace(/\s*\d+(?:[.,]\d+)?\s*г\b/, '').trim() || (it.description || '');
+  $('ap-name').value = name;
+  $('ap-grams').value = grams || '';
+  apUpdatePreview();
+  showScreen('addproduct');
+}
+
+function apUpdatePreview() {
+  const g = Number($('ap-grams').value) || 0;
+  const e = apEntry;
+  if (!e || !g) {
+    $('ap-preview').textContent = 'Укажи граммовку порции, чтобы посчитать на 100г.';
+    return;
+  }
+  const per = v => round((Number(v) || 0) / g * 100);
+  $('ap-preview').textContent = `На 100г: ${per(e.kcal)} ккал · Б${per(e.protein)} · Ж${per(e.fat)} · У${per(e.carbs)}`;
+}
+
+async function apSave() {
+  const name = $('ap-name').value.trim();
+  const g = Number($('ap-grams').value) || 0;
+  if (!name) { showStatus('Впиши название', true); return; }
+  if (!g) { showStatus('Впиши граммовку порции', true); return; }
+  const per = v => round((Number(v) || 0) / g * 100);
+  const e = apEntry;
+  try {
+    const res = await api('save-product', {
+      name, default_serving_g: g,
+      kcal_per_100g: per(e.kcal), protein_per_100g: per(e.protein),
+      fat_per_100g: per(e.fat), carbs_per_100g: per(e.carbs),
+    });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showStatus('Добавлено в продукты ✓', false, 1800);
+    goTab('foodlog');
+  } catch (err) {
+    showStatus('Не вышло: ' + err.message, true, 3000);
+  }
+}
+
 // === Еда за день (Фаза 2) ===
 let viewDate = null;      // YYYY-MM-DD — открытый день
 let serverToday = null;   // YYYY-MM-DD — «сегодня» по серверу (из первого ответа)
@@ -424,6 +542,12 @@ function buildFoodRow(it) {
   kcal.className = 'food-kcal';
   kcal.textContent = Math.round(it.kcal || 0);
 
+  const add = document.createElement('button');
+  add.className = 'food-add';
+  add.setAttribute('aria-label', 'В мои продукты');
+  add.textContent = '＋';
+  add.addEventListener('click', () => openAddProduct(it));
+
   const rep = document.createElement('button');
   rep.className = 'food-rep';
   rep.setAttribute('aria-label', 'Повторить сегодня');
@@ -438,6 +562,7 @@ function buildFoodRow(it) {
 
   row.appendChild(main);
   row.appendChild(kcal);
+  row.appendChild(add);
   row.appendChild(rep);
   row.appendChild(del);
   return row;
@@ -743,9 +868,14 @@ $('wkt-refresh').addEventListener('click', loadWorkout);
 $('wkt-prev').addEventListener('click', () => stepWktDay(-1));
 $('wkt-next').addEventListener('click', () => stepWktDay(1));
 $('wkt-complete').addEventListener('click', completeWorkout);
-$('food-refresh').addEventListener('click', loadFoodLog);
+$('food-refresh').addEventListener('click', () => (foodMode === 'products' ? loadProducts() : loadFoodLog()));
 $('food-prev').addEventListener('click', () => stepDay(-1));
 $('food-next').addEventListener('click', () => stepDay(1));
+document.querySelectorAll('.seg-btn').forEach(b =>
+  b.addEventListener('click', () => setFoodMode(b.dataset.mode)));
+$('ap-grams').addEventListener('input', apUpdatePreview);
+$('ap-save').addEventListener('click', apSave);
+$('ap-cancel').addEventListener('click', () => goTab('foodlog'));
 
 // === Старт: открываемся на главной (не на камере) ===
 window.addEventListener('load', () => goTab('dashboard'));

@@ -9,7 +9,7 @@
 <title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=11" />
+<link rel="stylesheet" href="styles.css?v=12" />
 </head>
 <body>
 
@@ -58,26 +58,46 @@
   </div>
 </div>
 
-<!-- ===== Еда за день (Фаза 2) ===== -->
+<!-- ===== Еда (дневник + мои продукты) ===== -->
 <div id="foodlog" class="screen tab-screen">
   <div class="page">
     <div class="page-head">
-      <div><h1>Еда за день</h1><span id="food-sub" class="muted small"></span></div>
+      <div><h1>Еда</h1><span id="food-sub" class="muted small"></span></div>
       <button id="food-refresh" class="icon-btn" aria-label="Обновить">⟳</button>
     </div>
-    <div class="daynav">
-      <button id="food-prev" class="nav-btn" aria-label="Предыдущий день">‹</button>
-      <span id="food-day" class="daynav-label">—</span>
-      <button id="food-next" class="nav-btn" aria-label="Следующий день">›</button>
+    <div class="seg">
+      <button id="seg-diary" class="seg-btn active" data-mode="diary">Дневник</button>
+      <button id="seg-products" class="seg-btn" data-mode="products">Мои продукты</button>
     </div>
-    <div id="food-loading" class="skeleton">
-      <div class="skel-row"><div class="skel skel-line w70"></div><div class="skel skel-line w40"></div></div>
-      <div class="skel-row"><div class="skel skel-line w60"></div><div class="skel skel-line w30"></div></div>
-      <div class="skel-row"><div class="skel skel-line w80"></div><div class="skel skel-line w40"></div></div>
+
+    <!-- режим: дневник за день -->
+    <div id="food-diary">
+      <div class="daynav">
+        <button id="food-prev" class="nav-btn" aria-label="Предыдущий день">‹</button>
+        <span id="food-day" class="daynav-label">—</span>
+        <button id="food-next" class="nav-btn" aria-label="Следующий день">›</button>
+      </div>
+      <div id="food-loading" class="skeleton">
+        <div class="skel-row"><div class="skel skel-line w70"></div><div class="skel skel-line w40"></div></div>
+        <div class="skel-row"><div class="skel skel-line w60"></div><div class="skel skel-line w30"></div></div>
+        <div class="skel-row"><div class="skel skel-line w80"></div><div class="skel skel-line w40"></div></div>
+      </div>
+      <div id="food-error" class="error-box hidden"></div>
+      <div id="food-empty" class="soon hidden">В этот день ничего не залогировано.</div>
+      <div id="food-list" class="hidden"></div>
     </div>
-    <div id="food-error" class="error-box hidden"></div>
-    <div id="food-empty" class="soon hidden">В этот день ничего не залогировано.</div>
-    <div id="food-list" class="hidden"></div>
+
+    <!-- режим: мои продукты (справочник, что бот знает) -->
+    <div id="food-products" class="hidden">
+      <div id="prod-loading" class="skeleton">
+        <div class="skel-row"><div class="skel skel-line w70"></div></div>
+        <div class="skel-row"><div class="skel skel-line w50"></div></div>
+        <div class="skel-row"><div class="skel skel-line w60"></div></div>
+      </div>
+      <div id="prod-error" class="error-box hidden"></div>
+      <div id="prod-empty" class="soon hidden">Пока нет сохранённых продуктов. Добавь любую запись из дневника кнопкой «＋».</div>
+      <div id="prod-list" class="hidden"></div>
+    </div>
   </div>
 </div>
 
@@ -167,6 +187,23 @@
   </div>
 </div>
 
+<!-- ===== Сохранить позицию в «Мои продукты» ===== -->
+<div id="addproduct" class="screen">
+  <div class="card">
+    <h2>В мои продукты</h2>
+    <p class="muted small">Бот запомнит продукт и будет считать его по точным числам.</p>
+    <label>Название</label>
+    <input id="ap-name" placeholder="например: творог 5%" />
+    <div class="grams-row">
+      <label>Это была порция, г:</label>
+      <input id="ap-grams" type="number" min="1" step="1" />
+    </div>
+    <p id="ap-preview" class="computed"></p>
+    <button id="ap-save" class="primary">Сохранить</button>
+    <button id="ap-cancel" class="ghost">Отмена</button>
+  </div>
+</div>
+
 <div id="status" class="status hidden"></div>
 
 <!-- ===== Нижний таб-бар ===== -->
@@ -177,6 +214,6 @@
   <button class="tab" data-tab="scanner"><span class="tab-ico">📷</span>Сканер</button>
 </nav>
 
-<script src="main.js?v=11"></script>
+<script src="main.js?v=12"></script>
 </body>
 </html>

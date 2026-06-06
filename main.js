@@ -331,7 +331,18 @@ function renderWorkout(d) {
 
   const list = $('wkt-list');
   list.innerHTML = '';
-  for (const ex of exs) list.appendChild(wktEdit ? buildExerciseEditRow(ex) : buildExerciseRow(ex));
+  let lastGroup = null;
+  for (const ex of exs) {
+    const g = ex.group || '';
+    if (g && g !== lastGroup) {
+      const h = document.createElement('div');
+      h.className = 'sec-head';
+      h.textContent = g;
+      list.appendChild(h);
+      lastGroup = g;
+    }
+    list.appendChild(wktEdit ? buildExerciseEditRow(ex) : buildExerciseRow(ex));
+  }
   list.classList.remove('hidden');
 
   $('wkt-edit').textContent = wktEdit ? 'Готово' : 'Изменить план';
@@ -351,11 +362,7 @@ function buildExerciseEditRow(ex) {
   name.textContent = ex.exercise;
   const sub = document.createElement('div');
   sub.className = 'muted small';
-  const parts = [];
-  if (ex.group) parts.push(ex.group);
-  if (ex.sets && ex.reps) parts.push(`${ex.sets}×${ex.reps}`);
-  if (ex.weight) parts.push(ex.weight);
-  sub.textContent = parts.join(' · ');
+  sub.textContent = exerciseSub(ex);
   main.appendChild(name);
   main.appendChild(sub);
 
@@ -445,6 +452,15 @@ async function completeWorkout() {
   }
 }
 
+function exerciseSub(ex) {
+  const parts = [];
+  if (ex.sets && ex.reps) parts.push(`${ex.sets}×${ex.reps}`);
+  else if (ex.reps) parts.push(ex.reps);
+  if (ex.weight) parts.push(ex.weight);
+  if (ex.note) parts.push(ex.note);
+  return parts.join(' · ');
+}
+
 function buildExerciseRow(ex) {
   const row = document.createElement('label');
   row.className = 'ex' + (ex.done ? ' is-done' : '');
@@ -456,12 +472,7 @@ function buildExerciseRow(ex) {
   name.textContent = ex.exercise;
   const sub = document.createElement('div');
   sub.className = 'muted small';
-  const parts = [];
-  if (ex.group) parts.push(ex.group);
-  if (ex.sets && ex.reps) parts.push(`${ex.sets}×${ex.reps}`);
-  if (ex.weight) parts.push(`${ex.weight}`);
-  if (ex.note) parts.push(ex.note);
-  sub.textContent = parts.join(' · ');
+  sub.textContent = exerciseSub(ex);
   main.appendChild(name);
   main.appendChild(sub);
 

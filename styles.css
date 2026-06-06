@@ -114,6 +114,7 @@ select { width: 100%; padding: 10px 12px; border: 1px solid var(--tg-theme-hint-
 #pp-search { margin-bottom: 12px; }
 
 /* ===================== Упражнения (Фаза 3) ===================== */
+.sec-head { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--tg-theme-hint-color, #999); margin: 16px 2px 8px; }
 .ex { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 16px; background: var(--card-bg); border-radius: var(--radius); margin-bottom: 10px; cursor: pointer; }
 .ex-main { min-width: 0; }
 .ex-name { font-size: 16px; font-weight: 600; transition: opacity 0.2s; }

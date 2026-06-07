@@ -251,9 +251,9 @@ async function loadWorkout(forcedBlock) {
   $('wkt-rest').classList.add('hidden');
   $('wkt-list').classList.add('hidden');
   $('wkt-complete').classList.add('hidden');
+  $('wkt-uncomplete').classList.add('hidden');
   $('wkt-addex').classList.add('hidden');
   $('wkt-edit').classList.add('hidden');
-  setRefreshing('wkt-refresh', true);
   try {
     const payload = {};
     if (wktViewDate) payload.date = wktViewDate;
@@ -270,8 +270,6 @@ async function loadWorkout(forcedBlock) {
     const box = $('wkt-error');
     box.textContent = e.message || 'Ошибка загрузки';
     box.classList.remove('hidden');
-  } finally {
-    setRefreshing('wkt-refresh', false);
   }
 }
 
@@ -312,6 +310,7 @@ function renderWorkout(d) {
     $('wkt-sub').textContent = '';
     $('wkt-list').classList.add('hidden');
     $('wkt-complete').classList.add('hidden');
+    $('wkt-uncomplete').classList.add('hidden');
     $('wkt-addex').classList.add('hidden');
     $('wkt-edit').classList.add('hidden');
     const hint = $('wkt-rest');
@@ -348,7 +347,25 @@ function renderWorkout(d) {
   $('wkt-edit').textContent = wktEdit ? 'Готово' : 'Изменить план';
   $('wkt-edit').classList.remove('hidden');
   $('wkt-addex').classList.toggle('hidden', !wktEdit);
-  $('wkt-complete').classList.toggle('hidden', wktEdit);
+
+  // Кнопки завершения. В режиме редактирования обе прячем.
+  const complete = $('wkt-complete');
+  const uncomplete = $('wkt-uncomplete');
+  if (wktEdit) {
+    complete.classList.add('hidden');
+    uncomplete.classList.add('hidden');
+  } else if (d.logged) {
+    // тренировка уже подтверждена → кнопку деактивируем, показываем «отменить»
+    complete.textContent = 'Тренировка завершена ✓';
+    complete.disabled = true;
+    complete.classList.remove('hidden');
+    uncomplete.classList.remove('hidden');
+  } else {
+    complete.textContent = 'Завершить тренировку';
+    complete.disabled = false;
+    complete.classList.remove('hidden');
+    uncomplete.classList.add('hidden');
+  }
 }
 
 // Строка упражнения в режиме редактирования (карандаш + удалить вместо свитчера).
@@ -444,11 +461,28 @@ async function completeWorkout() {
     const res = await api('complete-workout', { date: currentWorkout.date, block: currentWorkout.block_num });
     if (res.ok === false) throw new Error(res.error || 'fail');
     tg?.HapticFeedback?.notificationOccurred?.('success');
-    showStatus('Тренировка зафиксирована ✓', false, 1800);
+    showStatus(`Тренировка зафиксирована ✓ (+${res.kcal_burned || 0} ккал)`, false, 2000);
+    loadWorkout(currentWorkout.block_num);   // обновит статус кнопок (logged → деактив + «отменить»)
   } catch (e) {
     showStatus('Не вышло: ' + e.message, true, 3000);
-  } finally {
     btn.disabled = false;
+  }
+}
+
+async function uncompleteWorkout() {
+  const go = await new Promise(res => {
+    if (tg?.showConfirm) tg.showConfirm('Отменить завершение тренировки? Лимит по калориям уменьшится.', res);
+    else res(confirm('Отменить завершение тренировки?'));
+  });
+  if (!go) return;
+  try {
+    const res = await api('uncomplete-workout', { date: currentWorkout.date });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('warning');
+    showStatus('Завершение отменено', false, 1500);
+    loadWorkout(currentWorkout.block_num);
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
   }
 }
 
@@ -1145,21 +1179,19 @@ function _buildManualPayload(name, kcal, protein, fat, carbs, serving) {
 // Таб-бар + кнопка обновления дашборда
 document.querySelectorAll('.tab').forEach(t =>
   t.addEventListener('click', () => goTab(t.dataset.tab)));
-$('dash-refresh').addEventListener('click', loadDashboard);
 $('dash-settings').addEventListener('click', openSettings);
 $('set-close').addEventListener('click', () => goTab('dashboard'));
 $('set-save').addEventListener('click', saveSettings);
 $('set-recalc').addEventListener('click', recalcSettings);
 $('reg-bot').addEventListener('click', () => tg?.close?.());
-$('wkt-refresh').addEventListener('click', loadWorkout);
 $('wkt-prev').addEventListener('click', () => stepWktDay(-1));
 $('wkt-next').addEventListener('click', () => stepWktDay(1));
 $('wkt-complete').addEventListener('click', completeWorkout);
+$('wkt-uncomplete').addEventListener('click', uncompleteWorkout);
 $('wkt-edit').addEventListener('click', toggleWktEdit);
 $('wkt-addex').addEventListener('click', () => openExForm(null));
 $('exf-save').addEventListener('click', exfSave);
 $('exf-cancel').addEventListener('click', () => showScreen('workout'));
-$('food-refresh').addEventListener('click', () => (foodMode === 'products' ? loadProducts() : loadFoodLog()));
 $('food-prev').addEventListener('click', () => stepDay(-1));
 $('food-next').addEventListener('click', () => stepDay(1));
 document.querySelectorAll('.seg-btn').forEach(b =>

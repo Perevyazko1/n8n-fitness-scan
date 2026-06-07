@@ -9,7 +9,7 @@
 <title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=17" />
+<link rel="stylesheet" href="styles.css?v=18" />
 </head>
 <body>
 
@@ -20,7 +20,6 @@
       <div><h1>Сегодня</h1><span id="dash-date" class="muted small"></span></div>
       <div class="head-actions">
         <button id="dash-settings" class="icon-btn" aria-label="Настройки">⚙</button>
-        <button id="dash-refresh" class="icon-btn" aria-label="Обновить">⟳</button>
       </div>
     </div>
     <div id="dash-loading" class="skeleton">
@@ -66,7 +65,6 @@
   <div class="page">
     <div class="page-head">
       <div><h1>Еда</h1><span id="food-sub" class="muted small"></span></div>
-      <button id="food-refresh" class="icon-btn" aria-label="Обновить">⟳</button>
     </div>
     <div class="seg">
       <button id="seg-diary" class="seg-btn active" data-mode="diary">Дневник</button>
@@ -110,7 +108,6 @@
   <div class="page">
     <div class="page-head">
       <div><h1>Тренировка</h1><span id="wkt-sub" class="muted small"></span></div>
-      <button id="wkt-refresh" class="icon-btn" aria-label="Обновить">⟳</button>
     </div>
     <div class="daynav">
       <button id="wkt-prev" class="nav-btn" aria-label="Предыдущий день">‹</button>
@@ -129,6 +126,7 @@
     <div id="wkt-list" class="hidden"></div>
     <button id="wkt-addex" class="secondary hidden">＋ Добавить упражнение</button>
     <button id="wkt-complete" class="primary hidden">Завершить тренировку</button>
+    <button id="wkt-uncomplete" class="ghost hidden">Отменить завершение</button>
     <button id="wkt-edit" class="ghost hidden">Изменить план</button>
   </div>
 </div>
@@ -328,6 +326,6 @@
   <button class="tab" data-tab="scanner"><span class="tab-ico">📷</span>Сканер</button>
 </nav>
 
-<script src="main.js?v=17"></script>
+<script src="main.js?v=18"></script>
 </body>
 </html>

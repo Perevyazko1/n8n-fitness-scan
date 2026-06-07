@@ -152,6 +152,9 @@ select { width: 100%; padding: 10px 12px; border: 1px solid var(--tg-theme-hint-
 .nav-btn:disabled { opacity: 0.3; }
 .daynav-label { min-width: 120px; text-align: center; font-size: 15px; font-weight: 600; }
 
+/* отступ между «＋ Добавить из продуктов» и списком дневника */
+#food-add-from { margin-bottom: 14px; }
+
 /* ===================== Таб-бар ===================== */
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: flex; height: var(--tabbar-h); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--tg-theme-bg-color, #fff); border-top: 1px solid var(--tg-theme-secondary-bg-color, #e6e6e6); }
 .tab { width: auto; flex: 1; margin: 0; padding: 6px 0; border-radius: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; color: var(--tg-theme-hint-color, #999); }

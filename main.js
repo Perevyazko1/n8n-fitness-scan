@@ -130,8 +130,8 @@ function renderDashboard(d) {
   // --- Тренировка ---
   const w = d.workout_today || {};
   if (w.is_workout) {
-    $('wk-ico').textContent = '💪';
-    $('wk-title').textContent = 'Сегодня тренировка';
+    $('wk-ico').textContent = w.done ? '✅' : '💪';
+    $('wk-title').textContent = w.done ? 'Тренировка выполнена' : 'Сегодня тренировка';
     $('wk-sub').textContent = w.label || '';
   } else {
     $('wk-ico').textContent = '😌';

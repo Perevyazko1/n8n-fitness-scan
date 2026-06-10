@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Тренировка — варианты UI</title>
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  html, body { margin: 0; height: 100%; }
+  #root { height: 100%; }
+  .screen { width: 320px; background: var(--surface-page); font-family: var(--font-base); color: var(--text-primary); padding: 16px 14px 18px; }
+  .h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.01em; }
+  .chips { display: flex; gap: 8px; margin: 12px 0 14px; }
+  .chip { flex: 0 0 auto; padding: 7px 14px; border-radius: 999px; border: none; font-size: 14px; font-family: var(--font-base);
+    background: var(--surface-chip); color: var(--text-primary); cursor: pointer; }
+  .chip.on { background: var(--accent); color: #fff; font-weight: 600; }
+  .sec { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-hint); margin: 14px 2px 8px; }
+  .card { background: var(--surface-card); border-radius: 16px; box-shadow: var(--shadow-card); }
+  .muted { color: var(--text-hint); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  /* check circle */
+  .ck { width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%; border: 2px solid var(--sand-300);
+    background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .18s; }
+  .ck.on { background: var(--success); border-color: var(--success); }
+  .pill { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--accent-wash); color: var(--accent-press); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .setdot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--sand-300); flex: 0 0 9px; }
+  .setdot.on { background: var(--accent); border-color: var(--accent); }
+  .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; font-family: var(--font-base); cursor: pointer; }
+  .btn.ghost { background: var(--surface-chip); color: var(--text-primary); }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const Check = ({on, onClick}) => (
+  <button className={'ck' + (on?' on':'')} onClick={onClick} aria-label="Выполнено">
+    {on && <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5 l4.2 4.2 L19 6.8"/></svg>}
+  </button>
+);
+
+const Chips = () => {
+  const [s,setS]=useState(1);
+  return <div className="chips">{[1,2,3,4].map(n=>(
+    <button key={n} className={'chip'+(n===s?' on':'')} onClick={()=>setS(n)}>№{n}</button>
+  ))}</div>;
+};
+
+const EX = [
+  {g:'Разминка', n:'Кардио (велотренажёр)', s:'10 мин', sets:'', w:'', done:true},
+  {g:'Силовая', n:'Жим лёжа', s:'4×8-10 · 60кг', sets:[1,1,1,1], w:'60 кг', done:true},
+  {g:'Силовая', n:'Жим гантелей на наклонной', s:'3×10 · 22кг', sets:[1,1,1], w:'22 кг', done:true},
+  {g:'Силовая', n:'Подъём штанги на бицепс', s:'4×10 · 30кг', sets:[1,1,0,0], w:'30 кг', done:false},
+  {g:'Силовая', n:'Молотки с гантелями', s:'3×12 · 14кг', sets:[0,0,0], w:'14 кг', done:false},
+  {g:'Кор', n:'Планка', s:'3×60сек', sets:[0,0,0], w:'60 сек', done:false},
+];
+
+// ─────────── Variant A — Прогресс + чек-кружки ───────────
+function VariantA() {
+  const [ex,setEx]=useState(EX);
+  const done=ex.filter(e=>e.done).length;
+  const toggle=i=>setEx(c=>c.map((e,j)=>j===i?{...e,done:!e.done}:e));
+  let lg=null;
+  return (
+    <div className="screen">
+      <div className="h1">Тренировка</div>
+      <Chips/>
+      <div className="card" style={{padding:14, marginBottom:6}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:8}}>
+          <div style={{fontWeight:600,fontSize:15}}>№1 — Грудь + Бицепс</div>
+          <div className="tnum" style={{fontWeight:800,color:'var(--accent)'}}>{done}/{ex.length}</div>
+        </div>
+        <div style={{height:10,borderRadius:6,background:'var(--surface-track)',overflow:'hidden'}}>
+          <div style={{height:'100%',width:(done/ex.length*100)+'%',background:'var(--accent)',borderRadius:6,transition:'width .35s'}}/>
+        </div>
+        <div className="muted" style={{fontSize:12,marginTop:8}}>~45 мин · осталось {ex.length-done} упражнения</div>
+      </div>
+      {ex.map((e,i)=>{
+        const head=e.g!==lg?e.g:null; lg=e.g;
+        return (
+          <React.Fragment key={i}>
+            {head&&<div className="sec">{head}</div>}
+            <div className="card" style={{display:'flex',alignItems:'center',gap:12,padding:'13px 14px',marginBottom:10}}>
+              <Check on={e.done} onClick={()=>toggle(i)}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:600,fontSize:15,textDecoration:e.done?'line-through':'none',opacity:e.done?0.5:1}}>{e.n}</div>
+                <div className="muted" style={{fontSize:13}}>{e.s}</div>
+              </div>
+            </div>
+          </React.Fragment>
+        );
+      })}
+      <button className="btn" style={{marginTop:6}}>Завершить тренировку</button>
+    </div>
+  );
+}
+
+// ─────────── Variant B — Детали (подходы + вес) ───────────
+function VariantB() {
+  const [ex,setEx]=useState(EX);
+  const toggle=i=>setEx(c=>c.map((e,j)=>j===i?{...e,done:!e.done}:e));
+  // group counts
+  const counts={}; ex.forEach(e=>counts[e.g]=(counts[e.g]||0)+1);
+  let lg=null;
+  return (
+    <div className="screen">
+      <div className="h1">Тренировка</div>
+      <Chips/>
+      {ex.map((e,i)=>{
+        const head=e.g!==lg?e.g:null; lg=e.g;
+        return (
+          <React.Fragment key={i}>
+            {head&&<div className="sec">{head} · {counts[e.g]}</div>}
+            <div className="card" style={{padding:'13px 14px',marginBottom:10,opacity:e.done?0.62:1}}>
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:600,fontSize:15,textDecoration:e.done?'line-through':'none'}}>{e.n}</div>
+                </div>
+                <Check on={e.done} onClick={()=>toggle(i)}/>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginTop:10}}>
+                {Array.isArray(e.sets)&&e.sets.length>0 ? (
+                  <div style={{display:'flex',gap:5}}>
+                    {e.sets.map((d,k)=><span key={k} className={'setdot'+(d?' on':'')}/>)}
+                  </div>
+                ):null}
+                {e.w && <span className="pill">{e.w}</span>}
+                <span className="muted" style={{fontSize:12,marginLeft:'auto'}}>{e.s}</span>
+              </div>
+            </div>
+          </React.Fragment>
+        );
+      })}
+      <button className="btn" style={{marginTop:6}}>Завершить тренировку</button>
+    </div>
+  );
+}
+
+// ─────────── Variant C — Фокус (текущее упражнение) ───────────
+function VariantC() {
+  const [ex,setEx]=useState(EX);
+  const curIdx=ex.findIndex(e=>!e.done);
+  const cur=ex[curIdx]||ex[ex.length-1];
+  const done=ex.filter(e=>e.done).length;
+  const complete=i=>setEx(c=>c.map((e,j)=>j===i?{...e,done:true}:e));
+  return (
+    <div className="screen">
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+        <div className="h1">Тренировка</div>
+        <div className="muted tnum" style={{fontSize:14}}>{done}/{ex.length}</div>
+      </div>
+      <div className="muted" style={{fontSize:13,marginBottom:12}}>№1 — Грудь + Бицепс</div>
+      {/* фокус-карточка */}
+      <div className="card" style={{padding:'16px 16px 18px',marginBottom:14,boxShadow:'var(--shadow-raised)'}}>
+        <div style={{fontSize:12,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',color:'var(--accent)'}}>Сейчас</div>
+        <div style={{fontSize:20,fontWeight:700,marginTop:6,lineHeight:1.2}}>{cur.n}</div>
+        <div style={{display:'flex',gap:8,alignItems:'center',margin:'12px 0 16px'}}>
+          <span className="pill" style={{fontSize:14,padding:'5px 12px'}}>{cur.s.split(' · ')[0]||cur.s}</span>
+          {cur.w&&<span className="pill" style={{fontSize:14,padding:'5px 12px'}}>{cur.w}</span>}
+          {Array.isArray(cur.sets)&&<div style={{display:'flex',gap:6,marginLeft:4}}>{cur.sets.map((d,k)=><span key={k} className={'setdot'+(d?' on':'')} style={{width:11,height:11}}/>)}</div>}
+        </div>
+        <div style={{display:'flex',gap:8}}>
+          <button className="btn" style={{flex:2}} onClick={()=>complete(curIdx)}>Готово</button>
+          <button className="btn ghost" style={{flex:1}}>Отдых 90с</button>
+        </div>
+      </div>
+      <div className="sec">Дальше</div>
+      {ex.map((e,i)=> i===curIdx ? null : (
+        <div key={i} className="card" style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',marginBottom:8,opacity:e.done?0.5:1}}>
+          <span style={{width:22,height:22,flex:'0 0 22px',borderRadius:'50%',border:e.done?'none':'2px solid var(--sand-300)',background:e.done?'var(--success)':'transparent',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            {e.done&&<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5 l4.2 4.2 L19 6.8"/></svg>}
+          </span>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontWeight:500,fontSize:14,textDecoration:e.done?'line-through':'none'}}>{e.n}</div>
+          </div>
+          <span className="muted" style={{fontSize:12}}>{e.s}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <DesignCanvas>
+    <DCSection id="wo" title="Экран тренировки" subtitle="Три направления — выбрать одно (или микс)">
+      <DCArtboard id="a" label="A · Прогресс + чек-кружки" width={320} height={760}><VariantA/></DCArtboard>
+      <DCArtboard id="b" label="B · Детали: подходы + вес" width={320} height={690}><VariantB/></DCArtboard>
+      <DCArtboard id="c" label="C · Фокус на текущем" width={320} height={620}><VariantC/></DCArtboard>
+    </DCSection>
+  </DesignCanvas>
+);
+</script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Еда — улучшения UI</title>
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  html, body { margin: 0; height: 100%; }
+  #root { height: 100%; }
+  .screen { width: 320px; background: var(--surface-page); font-family: var(--font-base); color: var(--text-primary); padding: 16px 14px 18px; }
+  .h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.01em; }
+  .sub { font-size: 14px; color: var(--text-hint); margin-top: 2px; }
+  .seg { display: flex; gap: 4px; background: var(--surface-chip); border-radius: 12px; padding: 4px; margin: 12px 0 14px; }
+  .seg button { flex: 1; padding: 8px; border: none; border-radius: 9px; font-size: 14px; font-family: var(--font-base); background: transparent; color: var(--text-hint); cursor: pointer; }
+  .seg button.on { background: var(--accent); color: #fff; font-weight: 600; }
+  .card { background: var(--surface-card); border-radius: 16px; box-shadow: var(--shadow-card); }
+  .muted { color: var(--text-hint); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .iconbtn { width: 32px; height: 32px; flex: 0 0 32px; border: none; background: transparent; color: var(--text-hint); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .daynav { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 12px; }
+  .navarrow { width: 38px; height: 38px; border-radius: 50%; border: none; background: var(--surface-chip); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  /* meal header */
+  .meal { display: flex; align-items: center; gap: 8px; margin: 16px 2px 8px; }
+  .meal .name { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+  .meal .kc { margin-left: auto; font-size: 13px; color: var(--text-hint); font-variant-numeric: tabular-nums; }
+  .meal .add { width: 26px; height: 26px; border-radius: 50%; border: none; background: var(--accent-wash); color: var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  svg { display: block; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+const I = {
+  plus: <path d="M12 5 V19 M5 12 H19"/>,
+  repeat: <g><path d="M18.6 11.8 A6.8 6.8 0 1 0 17.2 16.6"/><path d="M18.9 5 V8.4 H15.5"/></g>,
+  close: <path d="M6.5 6.5 L17.5 17.5 M17.5 6.5 L6.5 17.5"/>,
+  left: <path d="M14.5 6 L8.5 12 L14.5 18"/>,
+  right: <path d="M9.5 6 L15.5 12 L9.5 18"/>,
+  dots: <g><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></g>,
+  edit: <g><path d="M14.4 5.4 l4.2 4.2"/><path d="M5 19 l0.9-3.7 L15.4 5 l3.6 3.6 L9.7 18.1 Z"/></g>,
+  trash: <g><path d="M5 7 H19 M9 7 V5.5 A1 1 0 0 1 10 4.5 H14 A1 1 0 0 1 15 5.5 V7 M7 7 L7.6 19 A1 1 0 0 0 8.6 20 H15.4 A1 1 0 0 0 16.4 19 L17 7"/></g>,
+};
+const Ic = ({n,s=18,sw=1.8,c}) => <svg viewBox="0 0 24 24" width={s} height={s} fill="none" stroke={c||'currentColor'} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">{I[n]}</svg>;
+
+const FOOD = [
+  { meal:'Завтрак', desc: 'Творог 5% 200г', time: '08:30', kcal: 242, p: 34, f: 10, c: 6 },
+  { meal:'Завтрак', desc: 'Банан 120г', time: '11:10', kcal: 107, p: 1, f: 0, c: 27 },
+  { meal:'Обед', desc: 'Куриная грудка 180г', time: '14:25', kcal: 297, p: 56, f: 6, c: 0 },
+  { meal:'Обед', desc: 'Гречка варёная 150г', time: '14:25', kcal: 165, p: 6, f: 2, c: 33 },
+];
+const GOAL = 1687;
+const eaten = FOOD.reduce((a,i)=>a+i.kcal,0);
+
+function Seg(){ return (
+  <div className="seg"><button className="on">Дневник</button><button>Мои продукты</button></div>
+);}
+function DayNav(){ return (
+  <div className="daynav"><button className="navarrow"><Ic n="left" s={20}/></button>
+  <span style={{fontWeight:600,fontSize:15}}>Сегодня</span>
+  <button className="navarrow" style={{opacity:.35}}><Ic n="right" s={20}/></button></div>
+);}
+
+// ─────────── СЕЙЧАС ───────────
+function Current(){
+  return (
+    <div className="screen">
+      <div className="h1">Еда</div>
+      <div className="sub tnum">811 ккал · Б97 · Ж18 · У66</div>
+      <Seg/>
+      <DayNav/>
+      <button className="card" style={{width:'100%',padding:'13px',marginBottom:12,border:'none',background:'var(--surface-chip)',fontSize:15,fontFamily:'var(--font-base)',display:'flex',gap:8,alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+        <Ic n="plus"/> Добавить из продуктов
+      </button>
+      {FOOD.map((it,i)=>(
+        <div key={i} className="card" style={{display:'flex',alignItems:'center',gap:10,padding:'13px 14px',marginBottom:10}}>
+          <div style={{minWidth:0,flex:1}}>
+            <div style={{fontSize:15,fontWeight:600}}>{it.desc}</div>
+            <div className="muted tnum" style={{fontSize:13}}>{it.time} · Б{it.p} · Ж{it.f} · У{it.c}</div>
+          </div>
+          <div className="tnum" style={{fontSize:17,fontWeight:700}}>{it.kcal}<span style={{fontSize:11,fontWeight:400,color:'var(--text-hint)'}}> ккал</span></div>
+          <button className="iconbtn"><Ic n="plus" s={17}/></button>
+          <button className="iconbtn"><Ic n="repeat" s={17}/></button>
+          <button className="iconbtn"><Ic n="close" s={17}/></button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─────────── ПРЕДЛОЖЕНИЕ ───────────
+function Proposed(){
+  const left = GOAL - eaten;
+  const meals = [...new Set(FOOD.map(f=>f.meal))];
+  return (
+    <div className="screen">
+      <div className="h1">Еда</div>
+      <Seg/>
+      <DayNav/>
+      {/* бюджет дня */}
+      <div className="card" style={{padding:'12px 14px',marginBottom:14}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:8}}>
+          <span className="muted" style={{fontSize:13}}>Осталось на сегодня</span>
+          <span className="tnum" style={{fontWeight:800,color:'var(--accent)'}}>{left} <span style={{fontSize:12,fontWeight:500,color:'var(--text-hint)'}}>ккал</span></span>
+        </div>
+        <div style={{height:8,borderRadius:5,background:'var(--surface-track)',overflow:'hidden'}}>
+          <div style={{height:'100%',width:(eaten/GOAL*100)+'%',background:'var(--accent)',borderRadius:5}}/>
+        </div>
+        <div className="muted tnum" style={{fontSize:12,marginTop:7}}>{eaten} из {GOAL} · Б97 · Ж18 · У66</div>
+      </div>
+      {meals.map(m=>{
+        const items=FOOD.filter(f=>f.meal===m);
+        const sum=items.reduce((a,i)=>a+i.kcal,0);
+        return (
+          <div key={m}>
+            <div className="meal">
+              <span className="name">{m}</span>
+              <span className="kc tnum">{sum} ккал</span>
+              <button className="add"><Ic n="plus" s={16}/></button>
+            </div>
+            {items.map((it,i)=>(
+              <div key={i} className="card" style={{display:'flex',alignItems:'center',gap:12,padding:'13px 14px',marginBottom:8}}>
+                <div style={{minWidth:0,flex:1}}>
+                  <div style={{fontSize:15,fontWeight:600}}>{it.desc}</div>
+                  <div className="muted tnum" style={{fontSize:13}}>{it.time} · Б{it.p} · Ж{it.f} · У{it.c}</div>
+                </div>
+                <div className="tnum" style={{fontSize:17,fontWeight:700,width:64,textAlign:'right'}}>{it.kcal}<div style={{fontSize:10,fontWeight:400,color:'var(--text-hint)'}}>ккал</div></div>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+      <div className="muted" style={{fontSize:11,textAlign:'center',marginTop:10,opacity:.7}}>тап по строке — изменить · свайп влево — удалить</div>
+    </div>
+  );
+}
+
+// ─────────── ВАРИАНТЫ ДЕЙСТВИЙ СО СТРОКОЙ ───────────
+function RowOptions(){
+  const Row = ({children, sub})=>(
+    <div style={{marginBottom:16}}>
+      <div className="muted" style={{fontSize:12,fontWeight:700,marginBottom:6}}>{sub}</div>
+      {children}
+    </div>
+  );
+  const food = {desc:'Куриная грудка 180г', time:'14:25', kcal:297, p:56,f:6,c:0};
+  return (
+    <div className="screen" style={{paddingTop:18}}>
+      <div style={{fontSize:17,fontWeight:700,marginBottom:14}}>Действия со строкой</div>
+
+      <Row sub="A · ТАП ПО СТРОКЕ → меню снизу">
+        <div className="card" style={{display:'flex',alignItems:'center',gap:12,padding:'13px 14px',outline:'2px solid var(--accent)',outlineOffset:'-2px'}}>
+          <div style={{flex:1}}><div style={{fontSize:15,fontWeight:600}}>{food.desc}</div><div className="muted tnum" style={{fontSize:13}}>{food.time} · Б{food.p} · Ж{food.f} · У{food.c}</div></div>
+          <div className="tnum" style={{fontSize:17,fontWeight:700,width:64,textAlign:'right'}}>{food.kcal}<div style={{fontSize:10,fontWeight:400,color:'var(--text-hint)'}}>ккал</div></div>
+        </div>
+        <div className="card" style={{marginTop:8,padding:6}}>
+          {[['edit','Изменить'],['repeat','Повторить завтра'],['plus','В мои продукты'],['trash','Удалить',1]].map(([n,t,d])=>(
+            <div key={t} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 10px',color:d?'var(--danger)':'var(--text-primary)'}}>
+              <Ic n={n} s={19} c={d?'var(--danger)':'var(--text-secondary)'}/><span style={{fontSize:15}}>{t}</span>
+            </div>
+          ))}
+        </div>
+      </Row>
+
+      <Row sub="B · ОДНА КНОПКА «…»">
+        <div className="card" style={{display:'flex',alignItems:'center',gap:10,padding:'13px 14px'}}>
+          <div style={{flex:1}}><div style={{fontSize:15,fontWeight:600}}>{food.desc}</div><div className="muted tnum" style={{fontSize:13}}>{food.time} · Б{food.p} · Ж{food.f} · У{food.c}</div></div>
+          <div className="tnum" style={{fontSize:17,fontWeight:700}}>{food.kcal}<span style={{fontSize:11,fontWeight:400,color:'var(--text-hint)'}}> ккал</span></div>
+          <button className="iconbtn"><Ic n="dots" s={20}/></button>
+        </div>
+      </Row>
+
+      <Row sub="C · СВАЙП ВЛЕВО → удалить">
+        <div style={{position:'relative',borderRadius:16,overflow:'hidden'}}>
+          <div style={{position:'absolute',inset:0,background:'var(--danger)',display:'flex',alignItems:'center',justifyContent:'flex-end',paddingRight:18,color:'#fff',gap:6}}><Ic n="trash" s={20} c="#fff"/><span style={{fontSize:14,fontWeight:600}}>Удалить</span></div>
+          <div className="card" style={{position:'relative',display:'flex',alignItems:'center',gap:10,padding:'13px 14px',transform:'translateX(-84px)'}}>
+            <div style={{flex:1}}><div style={{fontSize:15,fontWeight:600}}>{food.desc}</div><div className="muted tnum" style={{fontSize:13}}>{food.time} · Б{food.p} · Ж{food.f} · У{food.c}</div></div>
+            <div className="tnum" style={{fontSize:17,fontWeight:700}}>{food.kcal}<span style={{fontSize:11,fontWeight:400,color:'var(--text-hint)'}}> ккал</span></div>
+          </div>
+        </div>
+      </Row>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <DesignCanvas>
+    <DCSection id="food" title="Экран еды" subtitle="Сейчас → предложение, и варианты действий со строкой">
+      <DCArtboard id="now" label="Сейчас" width={320} height={720}><Current/></DCArtboard>
+      <DCArtboard id="new" label="Предложение · приёмы пищи + бюджет" width={320} height={760}><Proposed/></DCArtboard>
+      <DCArtboard id="rows" label="Чем заменить 3 кнопки" width={320} height={620}><RowOptions/></DCArtboard>
+    </DCSection>
+  </DesignCanvas>
+);
+</script>
+</body>
+</html>

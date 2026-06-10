@@ -1,0 +1,43 @@
+<!-- @dsCard group="Components" viewport="700x320" name="Data — Card · Bars · Streaks" subtitle="Stat card, kcal & macro bars, gamified streak badges" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<style>
+  body { padding: 20px 24px; background: var(--surface-page); }
+  #root { max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { Card, CardStatHead, ProgressBar, MacroRow, StreakBadge, Icon } = window.RyzhFitnessDesignSystem_eec584;
+    function Demo() {
+      return (
+        <>
+          <div style={{display:'flex', gap:10}}>
+            <StreakBadge count={5} label="Питание" icon={<Icon name="meal" size={18} />} />
+            <StreakBadge count={0} label="Тренировки" status="cold" icon={<Icon name="dumbbell" size={18} />} />
+          </div>
+          <Card>
+            <CardStatHead label="Калории" value="1444 ккал" />
+            <ProgressBar value={243} max={1687} />
+            <span className="muted small">243 из 1687 ккал · осталось 1444</span>
+          </Card>
+          <Card>
+            <MacroRow name="Белок" value={17} target={137} />
+            <MacroRow name="Жиры" value={5} target={76} />
+            <MacroRow name="Углеводы" value={3} target={193} />
+          </Card>
+        </>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+  </script>
+</body>
+</html>

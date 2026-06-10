@@ -8,10 +8,11 @@ const tg = window.Telegram?.WebApp;
 if (tg) {
   tg.ready();
   tg.expand();
-  // Полировка: цвет шапки под тему + защита от случайного свайпа-вниз (закрытия)
-  // при скролле списков. Всё под optional-chaining — на старых клиентах просто игнор.
-  try { tg.setHeaderColor?.('secondary_bg_color'); } catch {}
-  try { tg.setBackgroundColor?.('bg_color'); } catch {}
+  // Бренд Cream фиксирует свой тёплый цвет (шапка/фон), тему Telegram игнорируем.
+  // disableVerticalSwipes — защита от случайного свайпа-вниз (закрытия) при скролле.
+  // Всё под optional-chaining — на старых клиентах просто игнор.
+  try { tg.setHeaderColor?.('#FBF4EA'); } catch {}
+  try { tg.setBackgroundColor?.('#FBF4EA'); } catch {}
   try { tg.disableVerticalSwipes?.(); } catch {}
 }
 const INIT_DATA = tg?.initData || '';
@@ -38,6 +39,30 @@ const screens = {
 function showScreen(name) {
   Object.values(screens).forEach(s => s.classList.remove('active'));
   screens[name].classList.add('active');
+}
+
+// === Линейные иконки (бренд Cream, без эмодзи) ===
+const ICON_PATHS = {
+  dumbbell: '<path d="M6.6 8 V16"/><path d="M4.2 9.6 V14.4"/><path d="M17.4 8 V16"/><path d="M19.8 9.6 V14.4"/><path d="M6.6 12 H17.4"/>',
+  check:    '<path d="M5 12.5 l4.2 4.2 L19 6.8"/>',
+  leaf:     '<path d="M5 19 C5 10.7 11.4 5 19 5 C19 13.3 12.6 19 5 19 Z"/><path d="M7.4 16.6 C10.3 12.8 14 9.4 17 7.4"/>',
+  flame:    '<path d="M12 3.4 C12 7 16 8.6 16 12.8 A4 4 0 1 1 8 12.8 C8 10.9 9 9.5 10.2 8.7 C10 10.3 10.8 11.3 12 11.5 C13 9.9 12.4 6.5 12 3.4 Z"/>',
+  snowflake:'<path d="M12 3.5 V20.5"/><path d="M4.6 7.75 L19.4 16.25"/><path d="M19.4 7.75 L4.6 16.25"/><path d="M12 3.5 l-1.8 1.9 M12 3.5 l1.8 1.9 M12 20.5 l-1.8-1.9 M12 20.5 l1.8-1.9"/><path d="M4.6 7.75 l0.3 2.6 M4.6 7.75 l2.6-0.3 M19.4 16.25 l-0.3-2.6 M19.4 16.25 l-2.6 0.3"/><path d="M19.4 7.75 l-2.6-0.3 M19.4 7.75 l-0.3 2.6 M4.6 16.25 l2.6 0.3 M4.6 16.25 l0.3-2.6"/>',
+  plus:     '<path d="M12 5 V19 M5 12 H19"/>',
+  repeat:   '<path d="M18.6 11.8 A6.8 6.8 0 1 0 17.2 16.6"/><path d="M18.9 5 V8.4 H15.5"/>',
+  edit:     '<path d="M14.4 5.4 l4.2 4.2"/><path d="M5 19 l0.9-3.7 L15.4 5 l3.6 3.6 L9.7 18.1 Z"/>',
+  close:    '<path d="M6.5 6.5 L17.5 17.5 M17.5 6.5 L6.5 17.5"/>',
+};
+function iconSvg(name, size = 22, fill = false) {
+  const f = fill && name === 'flame' ? 'currentColor' : 'none';
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="${f}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON_PATHS[name] || ''}</svg>`;
+}
+function pluralDays(n) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return 'дней';
+  if (b > 1 && b < 5) return 'дня';
+  if (b === 1) return 'день';
+  return 'дней';
 }
 
 function showStatus(text, isError = false, timeout = 2500) {
@@ -124,32 +149,92 @@ function pct(part, whole) {
   return Math.max(0, Math.min(100, Math.round(part / whole * 100)));
 }
 
+function setStreak(id, s) {
+  const el = $(id);
+  if (!el) return;
+  const cur = (s && s.current) || 0;
+  const frozen = s && s.status === 'frozen';
+  const cold = cur === 0 && !frozen;
+  el.querySelector('.streak-num').textContent = cur;
+  el.querySelector('.streak-days').textContent = pluralDays(cur);
+  el.querySelector('.streak-flame').innerHTML = frozen ? iconSvg('snowflake', 15) : iconSvg('flame', 15, !cold);
+  const cap = el.querySelector('.streak-cap');
+  if (cap) {
+    const label = el.dataset.label || '';
+    cap.textContent = frozen ? 'серия под угрозой' : cold ? 'серия прервана' : `серия · ${label}`;
+  }
+  el.classList.toggle('cold', cold);       // нет серии — приглушённо
+  el.classList.toggle('frozen', !!frozen); // заморожена — под угрозой
+}
+
+// Кольцо калорий: дуга = доля съеденного, перебор красит в danger.
+function setCalRing(eaten, target) {
+  const arc = $('cal-arc');
+  if (!arc) return;
+  const c = 2 * Math.PI * 59.5;            // r=59.5 в SVG
+  const over = (eaten || 0) > (target || 0);
+  const p = target > 0 ? Math.max(0, Math.min(1, eaten / target)) : 0;
+  arc.style.strokeDasharray = `${(c * p).toFixed(1)} ${c.toFixed(1)}`;
+  arc.style.stroke = over ? 'var(--danger)' : 'var(--accent)';
+}
+
+// Голос Рыжа — одна живая строка по состоянию дня.
+function ryzhVoice(d) {
+  const st = d.streaks || {}, k = d.kcal || {}, w = d.workout_today || {};
+  const left = Math.round(k.left ?? 0);
+  const frozen = (st.nutrition && st.nutrition.status === 'frozen')
+              || (st.workout && st.workout.status === 'frozen');
+  if (frozen) return 'Стрик под угрозой — залогируй, пока я не замёрз.';
+  if (left < 0) return `Перебор на ${-left} ккал. Завтра аккуратнее — я в тебя верю.`;
+  if (w.is_workout && w.done) return 'Тренировка закрыта, питание в норме. Красавчик!';
+  if (left > 0) return `Ещё ${left} ккал в запасе. Держим темп.`;
+  return 'Идём по плану. Так держать!';
+}
+
 function renderDashboard(d) {
   $('dash-date').textContent = d.date || '';
 
-  // --- Тренировка ---
+  // --- Маскот-лис (тело по тирам мышцы×живот) ---
+  const av = d.avatar || {};
+  const m = av.muscle_tier ?? 2, b = av.belly_tier ?? 1;  // дефолт — середина
+  const fox = $('fox-avatar');
+  if (fox) {
+    fox.onerror = () => { fox.style.display = 'none'; };   // картинки нет → не ломаем медальон
+    fox.style.display = '';
+    fox.src = `img/fox_m${m}_b${b}.png`;
+  }
+
+  // --- Голос Рыжа ---
+  $('ryzh-says').innerHTML = `<b>Рыж:</b> ${ryzhVoice(d)}`;
+
+  // --- Серии ---
+  const st = d.streaks || {};
+  setStreak('streak-nutrition', st.nutrition);
+  setStreak('streak-workout', st.workout);
+
+  // --- Тренировка (карточка-ссылка на вкладку «Трен») ---
   const w = d.workout_today || {};
   if (w.is_workout) {
-    $('wk-ico').textContent = w.done ? '✅' : '💪';
+    $('wk-ico').innerHTML = iconSvg(w.done ? 'check' : 'dumbbell', 24);
     $('wk-title').textContent = w.done ? 'Тренировка выполнена' : 'Сегодня тренировка';
     $('wk-sub').textContent = w.label || '';
   } else {
-    $('wk-ico').textContent = '😌';
+    $('wk-ico').innerHTML = iconSvg('leaf', 24);
     $('wk-title').textContent = 'Сегодня отдых';
     $('wk-sub').textContent = (w.days_until_next != null)
       ? `Следующая тренировка через ${w.days_until_next} дн` : '';
   }
 
-  // --- Калории ---
+  // --- Калории (кольцо + легенда) ---
   const k = d.kcal || {};
   const left = Math.round(k.left ?? 0);
-  $('kcal-left').textContent = (left >= 0 ? left : left) + ' ккал';
-  $('kcal-left').classList.toggle('over', left < 0);
-  const kbar = $('kcal-bar');
-  kbar.style.width = pct(k.eaten, k.target) + '%';
-  kbar.classList.toggle('over', (k.eaten || 0) > (k.target || 0));
-  $('kcal-sub').textContent = `${Math.round(k.eaten || 0)} из ${Math.round(k.target || 0)} ккал`
-    + (left >= 0 ? ` · осталось ${left}` : ` · перебор ${-left}`);
+  const over = left < 0;
+  $('kcal-left').textContent = over ? -left : left;
+  $('kcal-left').classList.toggle('over', over);
+  $('kcal-cap').textContent = over ? 'перебор, ккал' : 'осталось, ккал';
+  setCalRing(k.eaten || 0, k.target || 0);
+  $('kcal-eaten').textContent = `${Math.round(k.eaten || 0)} ккал`;
+  $('kcal-target').textContent = `${Math.round(k.target || 0)} ккал`;
 
   // --- Макросы ---
   setMacro('protein', d.protein, 'г');
@@ -315,7 +400,7 @@ function renderWorkout(d) {
     $('wkt-edit').classList.add('hidden');
     const hint = $('wkt-rest');
     hint.textContent = (d.is_today && d.rest_hint_days != null)
-      ? 'Сегодня отдых 😌. Если всё же потренировался — выбери блок выше, чтобы отметить.'
+      ? 'Сегодня отдых. Если всё же потренировался — выбери блок выше, чтобы отметить.'
       : 'Выбери блок выше, чтобы отметить тренировку за этот день.';
     hint.classList.remove('hidden');
     return;
@@ -386,13 +471,13 @@ function buildExerciseEditRow(ex) {
   const edit = document.createElement('button');
   edit.className = 'food-rep';
   edit.setAttribute('aria-label', 'Изменить');
-  edit.textContent = '✎';
+  edit.innerHTML = iconSvg('edit', 18);
   edit.addEventListener('click', () => openExForm(ex));
 
   const del = document.createElement('button');
   del.className = 'food-del';
   del.setAttribute('aria-label', 'Удалить');
-  del.textContent = '✕';
+  del.innerHTML = iconSvg('close', 18);
   del.addEventListener('click', () => exDelete(ex));
 
   row.appendChild(main);
@@ -672,8 +757,10 @@ async function apSave() {
 // --- Быстро добавить еду из «Моих продуктов» ---
 let lfProduct = null;
 let _ppItems = [];
+let pendingMeal = null;   // в какой приём добавляем (по «＋» приёма); null = по времени
 
-async function openPickProduct() {
+async function openPickProduct(meal) {
+  pendingMeal = (typeof meal === 'string') ? meal : null;  // из обработчика клика прилетает event — игнорим
   showScreen('pickproduct');
   $('pp-search').value = '';
   $('pp-empty').classList.add('hidden');
@@ -739,8 +826,10 @@ async function lfAdd() {
       description: `${p.name} ${g}г`,
       kcal: m(p.kcal_per_100g), protein: m(p.protein_per_100g),
       fat: m(p.fat_per_100g), carbs: m(p.carbs_per_100g),
+      ...(pendingMeal ? { meal_type: pendingMeal } : {}),
     });
     if (res.ok === false) throw new Error(res.error || 'fail');
+    pendingMeal = null;
     tg?.HapticFeedback?.notificationOccurred?.('success');
     showStatus('Добавлено в дневник ✓', false, 1500);
     goTab('foodlog');
@@ -804,6 +893,124 @@ function stepDay(delta) {
 
 let currentFood = { date: null, items: [] };
 
+// --- Приёмы пищи (группировка дневника) ---
+const MEAL_ORDER = ['завтрак', 'обед', 'перекус', 'ужин'];
+const MEAL_LABEL = { 'завтрак': 'Завтрак', 'обед': 'Обед', 'перекус': 'Перекус', 'ужин': 'Ужин' };
+// Приём по времени — фолбэк для старых записей без meal_type (как на бэке meal_type_for_hour).
+function mealForTime(t) {
+  const h = parseInt(String(t || '').split(':')[0], 10);
+  if (isNaN(h)) return 'ужин';
+  if (h < 11) return 'завтрак';
+  if (h < 16) return 'обед';
+  if (h < 19) return 'перекус';
+  return 'ужин';
+}
+function mealOf(it) { return it.meal_type || mealForTime(it.time); }
+
+// --- Всплывающее меню строки («…») ---
+let _menuEl = null, _menuItem = null;
+function rowMenuEl() {
+  if (_menuEl) return _menuEl;
+  _menuEl = document.createElement('div');
+  _menuEl.className = 'row-menu hidden';
+  _menuEl.addEventListener('click', (e) => e.stopPropagation());
+  document.body.appendChild(_menuEl);
+  return _menuEl;
+}
+function closeRowMenu() { if (_menuEl) { _menuEl.classList.add('hidden'); _menuItem = null; } }
+document.addEventListener('click', closeRowMenu);
+window.addEventListener('scroll', closeRowMenu, true);
+
+function positionMenu(m, btn) {
+  const r = btn.getBoundingClientRect();
+  const mw = 224;
+  let left = Math.max(8, r.right - mw);
+  m.style.left = left + 'px';
+  m.style.width = mw + 'px';
+  m.style.top = '-9999px';
+  m.classList.remove('hidden');         // померить высоту
+  let top = r.bottom + 6;
+  if (top + m.offsetHeight > window.innerHeight - 8) top = Math.max(8, r.top - 6 - m.offsetHeight);
+  m.style.top = top + 'px';
+}
+
+function toggleRowMenu(it, btn) {
+  const m = rowMenuEl();
+  if (_menuItem === it && !m.classList.contains('hidden')) { closeRowMenu(); return; }
+  _menuItem = it;
+  m.innerHTML = '';
+  const actions = [
+    { ico: 'edit',   label: 'Изменить приём',    fn: () => openMealPicker(it, btn) },
+    { ico: 'repeat', label: 'Повторить сегодня',  fn: () => repeatFood(it) },
+    { ico: 'plus',   label: 'В мои продукты',     fn: () => openAddProduct(it) },
+    { ico: 'close',  label: 'Удалить', danger: true, fn: () => deleteFood(it) },
+  ];
+  for (const a of actions) {
+    if (a.danger) { const sep = document.createElement('div'); sep.className = 'row-menu-sep'; m.appendChild(sep); }
+    const b = document.createElement('button');
+    b.className = 'row-menu-item' + (a.danger ? ' danger' : '');
+    b.innerHTML = iconSvg(a.ico, 18) + `<span class="rm-grow">${a.label}</span>`;
+    b.addEventListener('click', (e) => { e.stopPropagation(); closeRowMenu(); a.fn(); });
+    m.appendChild(b);
+  }
+  positionMenu(m, btn);
+}
+
+// Подменю выбора приёма — переносит запись в другой приём.
+function openMealPicker(it, btn) {
+  const m = rowMenuEl();
+  _menuItem = it;
+  m.innerHTML = '';
+  const title = document.createElement('div');
+  title.className = 'row-menu-title';
+  title.textContent = 'Перенести в приём';
+  m.appendChild(title);
+  const cur = mealOf(it);
+  for (const meal of MEAL_ORDER) {
+    const b = document.createElement('button');
+    b.className = 'row-menu-item' + (meal === cur ? ' active' : '');
+    b.innerHTML = `<span class="rm-grow">${MEAL_LABEL[meal]}</span>` + (meal === cur ? iconSvg('check', 18) : '');
+    b.addEventListener('click', (e) => { e.stopPropagation(); closeRowMenu(); if (meal !== cur) changeMeal(it, meal); });
+    m.appendChild(b);
+  }
+  positionMenu(m, btn);
+}
+
+async function changeMeal(it, meal) {
+  const prev = it.meal_type;
+  it.meal_type = meal;            // оптимистично
+  renderFoodList();
+  try {
+    const res = await api('update-food', { id: it.id, meal_type: meal });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.selectionChanged?.();
+  } catch (e) {
+    it.meal_type = prev;         // откат
+    renderFoodList();
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  }
+}
+
+function buildMealHeader(meal, kcal) {
+  const h = document.createElement('div');
+  h.className = 'meal-head';
+  const nm = document.createElement('span');
+  nm.className = 'meal-name';
+  nm.textContent = MEAL_LABEL[meal] || meal;
+  const k = document.createElement('span');
+  k.className = 'meal-kcal';
+  k.textContent = `${kcal} ккал`;
+  const add = document.createElement('button');
+  add.className = 'meal-add';
+  add.setAttribute('aria-label', `Добавить в «${MEAL_LABEL[meal] || meal}»`);
+  add.innerHTML = iconSvg('plus', 16);
+  add.addEventListener('click', () => openPickProduct(meal));
+  h.appendChild(nm);
+  h.appendChild(k);
+  h.appendChild(add);
+  return h;
+}
+
 function renderFoodLog(d) {
   currentFood = { date: d.date, items: (d.items || []).slice() };
   renderFoodList();
@@ -816,6 +1023,7 @@ function renderFoodList() {
 
   if (!items.length) {
     $('food-sub').textContent = '';
+    $('food-budget').classList.add('hidden');
     list.classList.add('hidden');
     list.innerHTML = '';
     $('food-empty').classList.remove('hidden');
@@ -827,11 +1035,23 @@ function renderFoodList() {
     kcal: a.kcal + (i.kcal || 0), protein: a.protein + (i.protein || 0),
     fat: a.fat + (i.fat || 0), carbs: a.carbs + (i.carbs || 0),
   }), { kcal: 0, protein: 0, fat: 0, carbs: 0 });
-  $('food-sub').textContent =
-    `${Math.round(s.kcal)} ккал · Б${round(s.protein)} · Ж${round(s.fat)} · У${round(s.carbs)}`;
+  $('food-sub').textContent = '';
+  $('fb-kcal').textContent = `${Math.round(s.kcal)} ккал`;
+  $('fb-macros').textContent = `Б${round(s.protein)} · Ж${round(s.fat)} · У${round(s.carbs)}`;
+  $('food-budget').classList.remove('hidden');
 
+  // группируем по приёмам пищи, рисуем заголовок приёма + подытог + строки
   list.innerHTML = '';
-  for (const it of items) list.appendChild(buildFoodRow(it));
+  const groups = {};
+  for (const it of items) { const mk = mealOf(it); (groups[mk] || (groups[mk] = [])).push(it); }
+  const order = MEAL_ORDER.filter(m => groups[m]);
+  for (const m in groups) if (!order.includes(m)) order.push(m);  // незнакомые приёмы — в конец
+  for (const m of order) {
+    const g = groups[m];
+    const mk = g.reduce((a, i) => a + (i.kcal || 0), 0);
+    list.appendChild(buildMealHeader(m, Math.round(mk)));
+    for (const it of g) list.appendChild(buildFoodRow(it));
+  }
   list.classList.remove('hidden');
 }
 
@@ -857,29 +1077,16 @@ function buildFoodRow(it) {
   kcal.className = 'food-kcal';
   kcal.textContent = Math.round(it.kcal || 0);
 
-  const add = document.createElement('button');
-  add.className = 'food-add';
-  add.setAttribute('aria-label', 'В мои продукты');
-  add.textContent = '＋';
-  add.addEventListener('click', () => openAddProduct(it));
-
-  const rep = document.createElement('button');
-  rep.className = 'food-rep';
-  rep.setAttribute('aria-label', 'Повторить сегодня');
-  rep.textContent = '↻';
-  rep.addEventListener('click', () => repeatFood(it));
-
-  const del = document.createElement('button');
-  del.className = 'food-del';
-  del.setAttribute('aria-label', 'Удалить');
-  del.textContent = '✕';
-  del.addEventListener('click', () => deleteFood(it));
+  // одна кнопка «…» со всплывающим меню действий
+  const more = document.createElement('button');
+  more.className = 'food-more';
+  more.setAttribute('aria-label', 'Действия');
+  more.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>';
+  more.addEventListener('click', (e) => { e.stopPropagation(); toggleRowMenu(it, more); });
 
   row.appendChild(main);
   row.appendChild(kcal);
-  row.appendChild(add);
-  row.appendChild(rep);
-  row.appendChild(del);
+  row.appendChild(more);
   return row;
 }
 
@@ -1180,6 +1387,7 @@ function _buildManualPayload(name, kcal, protein, fat, carbs, serving) {
 document.querySelectorAll('.tab').forEach(t =>
   t.addEventListener('click', () => goTab(t.dataset.tab)));
 $('dash-settings').addEventListener('click', openSettings);
+$('card-workout').addEventListener('click', () => goTab('workout'));
 $('set-close').addEventListener('click', () => goTab('dashboard'));
 $('set-save').addEventListener('click', saveSettings);
 $('set-recalc').addEventListener('click', recalcSettings);

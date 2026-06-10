@@ -1,0 +1,33 @@
+- generic [ref=e1]:
+  - generic [ref=e114]:
+    - heading "Еда" [level=1] [ref=e117]
+    - generic [ref=e118]:
+      - button "Дневник" [ref=e119] [cursor=pointer]
+      - button "Мои продукты" [ref=e120] [cursor=pointer]
+    - generic [ref=e121]:
+      - generic [ref=e122]:
+        - button "Предыдущий день" [ref=e123] [cursor=pointer]:
+          - img [ref=e124]
+        - generic [ref=e126]: Сегодня
+        - button "Следующий день" [disabled] [ref=e127]:
+          - img [ref=e128]
+      - button "Добавить из продуктов" [ref=e135] [cursor=pointer]:
+        - img [ref=e136]
+        - text: Добавить из продуктов
+      - generic [ref=e231]:
+        - img "Рыж" [ref=e233]
+        - generic [ref=e234]: За этот день — ничего
+        - generic [ref=e235]: Рыж не видел ни крошки. Отсканируй штрихкод или добавь из продуктов.
+  - navigation [ref=e89]:
+    - button "Главная" [ref=e90] [cursor=pointer]:
+      - img [ref=e92]
+      - text: Главная
+    - button "Еда" [active] [ref=e96] [cursor=pointer]:
+      - img [ref=e98]
+      - text: Еда
+    - button "Трен" [ref=e103] [cursor=pointer]:
+      - img [ref=e105]
+      - text: Трен
+    - button "Сканер" [ref=e106] [cursor=pointer]:
+      - img [ref=e108]
+      - text: Сканер

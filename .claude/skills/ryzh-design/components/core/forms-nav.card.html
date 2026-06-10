@@ -1,0 +1,48 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Forms & Tab bar" subtitle="Input, Select, and the bottom tab navigation" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<style>
+  body { padding: 20px 24px 0; background: var(--surface-page); }
+  #root { max-width: 380px; }
+  .form { display: flex; flex-direction: column; gap: 12px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tabwrap { position: relative; height: 64px; margin: 18px -24px 0; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { Input, Select, TabBar, Icon } = window.RyzhFitnessDesignSystem_eec584;
+    const { useState } = React;
+    function Demo() {
+      const [tab, setTab] = useState('dashboard');
+      return (
+        <div className="form">
+          <div className="grid">
+            <Input label="Рост, см" type="number" defaultValue="178" />
+            <Input label="Вес, кг" type="number" defaultValue="74" />
+          </div>
+          <Select label="Цель" defaultValue="lose"
+            options={[{value:'lose',label:'Похудение'},{value:'maintain',label:'Поддержание'},{value:'gain',label:'Набор массы'}]} />
+          <div className="tabwrap">
+            <TabBar active={tab} onChange={setTab} fixed={false} tabs={[
+              {id:'dashboard',icon:<Icon name="home" size={22} />,label:'Главная'},
+              {id:'foodlog',icon:<Icon name="meal" size={22} />,label:'Еда'},
+              {id:'workout',icon:<Icon name="dumbbell" size={22} />,label:'Трен'},
+              {id:'scanner',icon:<Icon name="scan" size={22} />,label:'Сканер'},
+            ]} />
+          </div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+  </script>
+</body>
+</html>

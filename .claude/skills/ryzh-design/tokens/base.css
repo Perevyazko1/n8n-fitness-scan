@@ -1,0 +1,29 @@
+/* ============================================================
+   Ryzh Fitness — Base
+   ------------------------------------------------------------
+   Foundational element defaults + a few utilities, mirroring the
+   live Mini App's reset. Imported after tokens so it can use them.
+   ============================================================ */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  font-family: var(--font-base);
+  background: var(--surface-page);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---- Text utilities ---- */
+.muted   { color: var(--text-hint); }
+.small   { font-size: var(--fs-small); }
+.tnum    { font-variant-numeric: tabular-nums; }
+.caps    { text-transform: uppercase; letter-spacing: var(--ls-caps); font-weight: var(--fw-bold); }
+
+/* ---- Section head (workout groups) ---- */
+.sec-head {
+  font-size: var(--fs-small); font-weight: var(--fw-bold);
+  text-transform: uppercase; letter-spacing: var(--ls-caps);
+  color: var(--text-hint); margin: var(--space-8) 2px var(--space-4);
+}

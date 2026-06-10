@@ -1,0 +1,46 @@
+/* ============================================================
+   Ryzh Fitness — Typography
+   ------------------------------------------------------------
+   The app ships NO custom webfonts. It relies on the native
+   system UI stack so the Mini App feels at home inside Telegram
+   on iOS / Android / desktop. We keep that exactly — the
+   "brand typeface" IS the platform system font.
+   ============================================================ */
+
+:root {
+  /* ---- Font families ---- */
+  --font-system:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-numeric: var(--font-system);  /* uses tabular-nums via utility */
+  --font-base:    var(--font-system);
+
+  /* ---- Type scale (px — matches live app) ---- */
+  --fs-h1:     22px;   /* page title — "Сегодня", "Еда" */
+  --fs-h2:     20px;   /* card / modal heading */
+  --fs-stat:   22px;   /* big stat number — kcal left */
+  --fs-display:24px;   /* product kcal / big number */
+  --fs-stat-title: 17px; /* "Сегодня тренировка" */
+  --fs-body:   16px;   /* default body · inputs · buttons */
+  --fs-label:  15px;   /* secondary labels */
+  --fs-sub:    14px;   /* macros / stat labels */
+  --fs-small:  13px;   /* row meta · macro values */
+  --fs-tiny:   12px;   /* hints, captions, tab labels (11px floor) */
+  --fs-tab:    11px;   /* tab-bar caption */
+
+  /* ---- Weights ---- */
+  --fw-regular: 400; /* @kind other */
+  --fw-medium:  500; /* @kind other */
+  --fw-semibold:600; /* @kind other */
+  --fw-bold:    700; /* @kind other */
+  --fw-heavy:   800; /* @kind other */
+
+  /* ---- Line heights ---- */
+  --lh-tight:  1.15; /* @kind other */
+  --lh-snug:   1.3; /* @kind other */
+  --lh-body:   1.45; /* @kind other */
+
+  /* ---- Letter spacing ---- */
+  --ls-caps:   0.04em; /* @kind other */
+  --ls-normal: 0; /* @kind other */
+}

@@ -9,7 +9,7 @@
 <title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=18" />
+<link rel="stylesheet" href="styles.css?v=21" />
 </head>
 <body>
 
@@ -19,7 +19,9 @@
     <div class="page-head">
       <div><h1>Сегодня</h1><span id="dash-date" class="muted small"></span></div>
       <div class="head-actions">
-        <button id="dash-settings" class="icon-btn" aria-label="Настройки">⚙</button>
+        <button id="dash-settings" class="icon-btn" aria-label="Настройки">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7 H20 M4 12 H20 M4 17 H20"/><circle cx="9" cy="7" r="2.1"/><circle cx="15" cy="12" r="2.1"/><circle cx="8" cy="17" r="2.1"/></svg>
+        </button>
       </div>
     </div>
     <div id="dash-loading" class="skeleton">
@@ -30,18 +32,50 @@
     <div id="dash-error" class="error-box hidden"></div>
     <div id="dash-content" class="hidden">
 
-      <div class="card stat" id="card-workout">
-        <div class="stat-row"><span class="stat-ico" id="wk-ico">🏋️</span>
-          <div><div class="stat-title" id="wk-title">—</div>
-               <div class="muted small" id="wk-sub"></div></div>
+      <div class="fox-wrap">
+        <div class="medallion"><img id="fox-avatar" alt="Рыж" /></div>
+        <div id="ryzh-says" class="ryzh-says"></div>
+      </div>
+
+      <div class="streaks-row" id="card-streaks">
+        <div class="streak-badge" id="streak-nutrition" data-label="питание">
+          <span class="streak-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.8 h16 a8 8 0 0 1 -16 0 Z"/><path d="M9 5 c-1 1.4 -1 2.6 0 4"/><path d="M12 4.2 c-1 1.6 -1 3 0 4.6"/><path d="M15 5 c-1 1.4 -1 2.6 0 4"/></svg></span>
+          <div class="streak-body">
+            <div class="streak-top"><span class="streak-num">0</span><span class="streak-days">дней</span><span class="streak-flame"></span></div>
+            <div class="streak-cap">серия · питание</div>
+          </div>
+        </div>
+        <div class="streak-badge" id="streak-workout" data-label="тренировки">
+          <span class="streak-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 8 V16"/><path d="M4.2 9.6 V14.4"/><path d="M17.4 8 V16"/><path d="M19.8 9.6 V14.4"/><path d="M6.6 12 H17.4"/></svg></span>
+          <div class="streak-body">
+            <div class="streak-top"><span class="streak-num">0</span><span class="streak-days">дней</span><span class="streak-flame"></span></div>
+            <div class="streak-cap">серия · тренировки</div>
+          </div>
         </div>
       </div>
 
+      <button class="card-tap" id="card-workout">
+        <span class="stat-ico-box" id="wk-ico"></span>
+        <span class="stat-grow"><span class="stat-title" id="wk-title">—</span>
+          <span class="muted small" id="wk-sub" style="display:block"></span></span>
+        <span class="stat-chev"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 6 L15.5 12 L9.5 18"/></svg></span>
+      </button>
+
       <div class="card stat" id="card-kcal">
-        <div class="stat-head"><span class="stat-label">Калории</span>
-          <span id="kcal-left" class="stat-big">—</span></div>
-        <div class="bar"><div id="kcal-bar" class="bar-fill"></div></div>
-        <div class="muted small" id="kcal-sub"></div>
+        <div class="kcal-row">
+          <div class="cal-ring">
+            <svg width="132" height="132" viewBox="0 0 132 132">
+              <circle class="cal-track" cx="66" cy="66" r="59.5"></circle>
+              <circle id="cal-arc" class="cal-arc" cx="66" cy="66" r="59.5"></circle>
+            </svg>
+            <div class="cal-center"><div id="kcal-left" class="cal-num">—</div><div id="kcal-cap" class="cal-cap">осталось, ккал</div></div>
+          </div>
+          <div class="kcal-legend">
+            <div class="stat-label" style="margin-bottom:8px">Калории</div>
+            <div class="legend-row"><span class="legend-dot accent"></span><span class="legend-lab">Съедено</span><span id="kcal-eaten" class="legend-val">—</span></div>
+            <div class="legend-row"><span class="legend-dot track"></span><span class="legend-lab">Цель</span><span id="kcal-target" class="legend-val">—</span></div>
+          </div>
+        </div>
       </div>
 
       <div class="card stat" id="card-macros">
@@ -74,18 +108,26 @@
     <!-- режим: дневник за день -->
     <div id="food-diary">
       <div class="daynav">
-        <button id="food-prev" class="nav-btn" aria-label="Предыдущий день">‹</button>
+        <button id="food-prev" class="nav-btn" aria-label="Предыдущий день"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6 L8.5 12 L14.5 18"/></svg></button>
         <span id="food-day" class="daynav-label">—</span>
-        <button id="food-next" class="nav-btn" aria-label="Следующий день">›</button>
+        <button id="food-next" class="nav-btn" aria-label="Следующий день"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 6 L15.5 12 L9.5 18"/></svg></button>
       </div>
-      <button id="food-add-from" class="secondary">＋ Добавить из продуктов</button>
+      <div id="food-budget" class="card stat hidden">
+        <div class="stat-head"><span class="stat-label">Съедено за день</span><span id="fb-kcal" class="stat-big">—</span></div>
+        <div class="muted small" id="fb-macros"></div>
+      </div>
+      <button id="food-add-from" class="secondary with-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5 V19 M5 12 H19"/></svg> Добавить из продуктов</button>
       <div id="food-loading" class="skeleton">
         <div class="skel-row"><div class="skel skel-line w70"></div><div class="skel skel-line w40"></div></div>
         <div class="skel-row"><div class="skel skel-line w60"></div><div class="skel skel-line w30"></div></div>
         <div class="skel-row"><div class="skel skel-line w80"></div><div class="skel skel-line w40"></div></div>
       </div>
       <div id="food-error" class="error-box hidden"></div>
-      <div id="food-empty" class="soon hidden">В этот день ничего не залогировано.</div>
+      <div id="food-empty" class="empty-fox hidden">
+        <div class="medallion sm"><img src="img/fox_m0_b0.png" alt="Рыж" /></div>
+        <div class="empty-fox-title">За этот день — ничего</div>
+        <div class="empty-fox-hint">Рыж не видел ни крошки. Отсканируй штрихкод или добавь из продуктов.</div>
+      </div>
       <div id="food-list" class="hidden"></div>
     </div>
 
@@ -110,9 +152,9 @@
       <div><h1>Тренировка</h1><span id="wkt-sub" class="muted small"></span></div>
     </div>
     <div class="daynav">
-      <button id="wkt-prev" class="nav-btn" aria-label="Предыдущий день">‹</button>
+      <button id="wkt-prev" class="nav-btn" aria-label="Предыдущий день"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6 L8.5 12 L14.5 18"/></svg></button>
       <span id="wkt-day" class="daynav-label">—</span>
-      <button id="wkt-next" class="nav-btn" aria-label="Следующий день">›</button>
+      <button id="wkt-next" class="nav-btn" aria-label="Следующий день"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 6 L15.5 12 L9.5 18"/></svg></button>
     </div>
     <div id="wkt-loading" class="skeleton">
       <div class="skel-row"><div class="skel skel-line w60"></div><div class="skel skel-sw"></div></div>
@@ -124,7 +166,7 @@
     <div id="wkt-blocks" class="blocks hidden"></div>
     <div id="wkt-rest" class="soon hidden"></div>
     <div id="wkt-list" class="hidden"></div>
-    <button id="wkt-addex" class="secondary hidden">＋ Добавить упражнение</button>
+    <button id="wkt-addex" class="secondary with-ico hidden"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5 V19 M5 12 H19"/></svg> Добавить упражнение</button>
     <button id="wkt-complete" class="primary hidden">Завершить тренировку</button>
     <button id="wkt-uncomplete" class="ghost hidden">Отменить завершение</button>
     <button id="wkt-edit" class="ghost hidden">Изменить план</button>
@@ -135,7 +177,7 @@
 <div id="scanner" class="screen">
   <video id="video" playsinline muted autoplay></video>
   <div class="overlay">
-    <div class="frame"></div>
+    <div class="frame"><div class="scan-line"></div></div>
     <p class="hint">Наведи камеру на штрихкод</p>
   </div>
   <button id="btn-manual" class="manual-btn">Ввести цифры вручную</button>
@@ -213,7 +255,7 @@
   <div class="page">
     <div class="page-head">
       <div><h1>Из продуктов</h1></div>
-      <button id="pp-close" class="icon-btn" aria-label="Закрыть">✕</button>
+      <button id="pp-close" class="icon-btn" aria-label="Закрыть"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5 L17.5 17.5 M17.5 6.5 L6.5 17.5"/></svg></button>
     </div>
     <input id="pp-search" placeholder="поиск по названию…" />
     <div id="pp-empty" class="soon hidden">Нет сохранённых продуктов. Добавь их из дневника кнопкой «＋».</div>
@@ -259,7 +301,7 @@
   <div class="page">
     <div class="page-head">
       <div><h1>Настройки</h1></div>
-      <button id="set-close" class="icon-btn" aria-label="Закрыть">✕</button>
+      <button id="set-close" class="icon-btn" aria-label="Закрыть"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5 L17.5 17.5 M17.5 6.5 L6.5 17.5"/></svg></button>
     </div>
     <div id="set-loading" class="loading">Загрузка…</div>
     <div id="set-content" class="hidden">
@@ -308,8 +350,8 @@
 
 <!-- ===== Блок доступа (не зарегистрирован) ===== -->
 <div id="reggate" class="screen">
-  <div class="card" style="text-align:center; justify-content:center; height:100%;">
-    <div style="font-size:48px;">🔒</div>
+  <div class="card" style="text-align:center; align-items:center; justify-content:center; height:100%;">
+    <span class="stat-ico-box" style="width:64px;height:64px;flex:0 0 64px;border-radius:50%;"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.8" y="10.8" width="14.4" height="9.2" rx="2.4"/><path d="M8 10.8 V8.2 a4 4 0 0 1 8 0 v2.6"/><path d="M12 14.4 v2"/></svg></span>
     <h2>Доступ закрыт</h2>
     <p class="muted">Чтобы открыть приложение, отправь боту в чат <b>пароль доступа</b>. После этого переоткрой приложение.</p>
     <button id="reg-bot" class="primary">Вернуться в чат</button>
@@ -320,12 +362,12 @@
 
 <!-- ===== Нижний таб-бар ===== -->
 <nav id="tabbar" class="tabbar">
-  <button class="tab" data-tab="dashboard"><span class="tab-ico">🏠</span>Главная</button>
-  <button class="tab" data-tab="foodlog"><span class="tab-ico">🍽️</span>Еда</button>
-  <button class="tab" data-tab="workout"><span class="tab-ico">🏋️</span>Трен</button>
-  <button class="tab" data-tab="scanner"><span class="tab-ico">📷</span>Сканер</button>
+  <button class="tab" data-tab="dashboard"><span class="tab-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11.2 L12 4 L20.5 11.2"/><path d="M5.6 9.6 V19.5 a0.9 0.9 0 0 0 0.9 0.9 H17.5 a0.9 0.9 0 0 0 0.9-0.9 V9.6"/><path d="M9.8 20.4 v-4.4 a0.8 0.8 0 0 1 0.8-0.8 h2.8 a0.8 0.8 0 0 1 0.8 0.8 v4.4"/></svg></span>Главная</button>
+  <button class="tab" data-tab="foodlog"><span class="tab-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.8 h16 a8 8 0 0 1 -16 0 Z"/><path d="M9 5 c-1 1.4 -1 2.6 0 4"/><path d="M12 4.2 c-1 1.6 -1 3 0 4.6"/><path d="M15 5 c-1 1.4 -1 2.6 0 4"/></svg></span>Еда</button>
+  <button class="tab" data-tab="workout"><span class="tab-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 8 V16"/><path d="M4.2 9.6 V14.4"/><path d="M17.4 8 V16"/><path d="M19.8 9.6 V14.4"/><path d="M6.6 12 H17.4"/></svg></span>Трен</button>
+  <button class="tab" data-tab="scanner"><span class="tab-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5 V6.4 A1.4 1.4 0 0 1 5.4 5 H7.6"/><path d="M20 8.5 V6.4 A1.4 1.4 0 0 0 18.6 5 H16.4"/><path d="M4 15.5 V17.6 A1.4 1.4 0 0 0 5.4 19 H7.6"/><path d="M20 15.5 V17.6 A1.4 1.4 0 0 1 18.6 19 H16.4"/><path d="M8.8 9 V15"/><path d="M12 9 V15"/><path d="M15.2 9 V15"/></svg></span>Сканер</button>
 </nav>
 
-<script src="main.js?v=18"></script>
+<script src="main.js?v=21"></script>
 </body>
 </html>

@@ -1,0 +1,20 @@
+- generic [ref=e1]:
+  - text: ккал ккал ккал
+  - generic [ref=e227]:
+    - generic:
+      - paragraph: Наведи камеру на штрихкод
+    - button "Ввести цифры вручную" [ref=e229] [cursor=pointer]
+  - generic [ref=e230]: "Камера: Permission denied"
+  - navigation [ref=e89]:
+    - button "Главная" [ref=e90] [cursor=pointer]:
+      - img [ref=e92]
+      - text: Главная
+    - button "Еда" [ref=e96] [cursor=pointer]:
+      - img [ref=e98]
+      - text: Еда
+    - button "Трен" [ref=e103] [cursor=pointer]:
+      - img [ref=e105]
+      - text: Трен
+    - button "Сканер" [active] [ref=e106] [cursor=pointer]:
+      - img [ref=e108]
+      - text: Сканер

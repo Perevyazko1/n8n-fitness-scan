@@ -1,0 +1,22 @@
+<!-- @dsCard group="Spacing" viewport="700x170" name="Radii" subtitle="16px signature card radius · 12px buttons · 10px inputs · full-round pills" -->
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { padding: 24px; background: var(--surface-page); display: flex; gap: 26px; align-items: flex-end; font-family: var(--font-base); }
+  .item { text-align: center; }
+  .box { width: 96px; height: 72px; background: var(--surface-card); box-shadow: var(--shadow-card); }
+  .pill { width: 96px; height: 40px; background: var(--accent); }
+  .nm { font-size: 11px; color: var(--text-primary); font-weight: 600; margin-top: 8px; }
+  .val { font-size: 10px; color: var(--text-hint); }
+</style>
+</head>
+<body>
+  <div class="item"><div class="box" style="border-radius:var(--radius)"></div><div class="nm">--radius</div><div class="val">16px · карточки, строки</div></div>
+  <div class="item"><div class="box" style="border-radius:var(--radius-btn)"></div><div class="nm">--radius-btn</div><div class="val">12px · кнопки</div></div>
+  <div class="item"><div class="box" style="border-radius:var(--radius-sm)"></div><div class="nm">--radius-sm</div><div class="val">10px · инпуты</div></div>
+  <div class="item"><div class="pill" style="border-radius:var(--radius-pill)"></div><div class="nm">--radius-pill</div><div class="val">999px · chip, switch</div></div>
+</body>
+</html>

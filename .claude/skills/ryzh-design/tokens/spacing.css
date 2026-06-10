@@ -1,0 +1,64 @@
+/* ============================================================
+   Ryzh Fitness — Spacing, Radii, Shadows, Motion
+   ------------------------------------------------------------
+   A compact mobile system. Cards use one consistent radius
+   (14px); pills/controls use full-round. Padding is dense —
+   16px page gutters, 16px card insets, 10–12px row gaps.
+   The app is nearly shadow-free: depth comes from surface
+   contrast (card vs page), not elevation.
+   ============================================================ */
+
+:root {
+  /* ---- Spacing scale (4px base) ---- */
+  --space-0:   0;
+  --space-1:   2px;
+  --space-2:   4px;
+  --space-3:   6px;
+  --space-4:   8px;
+  --space-5:   10px;
+  --space-6:   12px;
+  --space-7:   14px;   /* card→card vertical rhythm */
+  --space-8:   16px;   /* page gutter · card inset */
+  --space-10:  20px;   /* modal card inset */
+  --space-12:  24px;
+  --space-14:  28px;
+
+  /* ---- Layout ---- */
+  --page-gutter:   16px;
+  --page-max:      560px;   /* content column cap */
+  --tabbar-h:      calc(58px + env(safe-area-inset-bottom, 0px));
+  --hit-min:       44px;    /* minimum tap target */
+
+  /* ---- Radii (Cream) ---- */
+  --radius:        16px;    /* cards, rows — the signature radius */
+  --radius-btn:    12px;    /* primary/secondary buttons */
+  --radius-sm:     10px;    /* inputs, computed boxes */
+  --radius-md:     12px;    /* error boxes, modals */
+  --radius-pill:   999px;   /* chips, switches, icon buttons, nav arrows */
+  --radius-input:  10px;
+
+  /* ---- Control sizes ---- */
+  --switch-w:      50px;
+  --switch-h:      30px;
+  --switch-knob:   26px;
+  --icon-btn:      40px;    /* round settings / refresh button */
+  --nav-btn:       38px;    /* day-nav arrows */
+  --row-add-btn:   32px;    /* inline +/↻/✕ on rows */
+  --bar-h:         10px;    /* progress bar */
+  --bar-h-sm:      7px;     /* macro bar */
+
+  /* ---- Shadows (warm, soft — Cream lifts cards off the cream page) ---- */
+  --shadow-none:   none;
+  --shadow-card:   0 2px 10px rgba(120, 90, 40, 0.06);
+  --shadow-raised: 0 6px 20px rgba(120, 90, 40, 0.10);
+  --shadow-knob:   0 1px 3px rgba(80, 50, 20, 0.28);
+  --shadow-toast:  0 8px 24px rgba(80, 50, 20, 0.20);
+  --shadow-mask:   0 0 0 9999px rgba(30, 20, 10, 0.42);
+
+  /* ---- Motion ---- */
+  --ease-out:      cubic-bezier(0.22, 0.61, 0.36, 1); /* @kind other */
+  --dur-fast:      0.1s;    /* @kind other */
+  --dur-base:      0.2s;    /* @kind other */
+  --dur-bar:       0.35s;   /* @kind other */
+  --dur-fade:      0.2s;    /* @kind other */
+}

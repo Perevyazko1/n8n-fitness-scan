@@ -1,0 +1,78 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e114]:
+    - heading "Еда" [level=1] [ref=e117]
+    - generic [ref=e118]:
+      - button "Дневник" [ref=e119] [cursor=pointer]
+      - button "Мои продукты" [ref=e120] [cursor=pointer]
+    - generic [ref=e121]:
+      - generic [ref=e122]:
+        - button "Предыдущий день" [ref=e123] [cursor=pointer]:
+          - img [ref=e124]
+        - generic [ref=e126]: Сегодня
+        - button "Следующий день" [disabled] [ref=e127]:
+          - img [ref=e128]
+      - generic [ref=e130]:
+        - generic [ref=e131]:
+          - generic [ref=e132]: Съедено за день
+          - generic [ref=e133]: 767 ккал
+        - generic [ref=e134]: Б108 · Ж21 · У36
+      - button "Добавить из продуктов" [ref=e135] [cursor=pointer]:
+        - img [ref=e136]
+        - text: Добавить из продуктов
+      - generic [ref=e138]:
+        - generic [ref=e228]:
+          - generic [ref=e229]: Завтрак
+          - generic [ref=e230]: 107 ккал
+          - button "Добавить в «Завтрак»" [ref=e231] [cursor=pointer]:
+            - img [ref=e232]
+        - generic [ref=e234]:
+          - generic [ref=e235]:
+            - generic [ref=e236]: Банан 120г
+            - generic [ref=e237]: 11:10 · Б1 · Ж0 · У27
+          - generic [ref=e238]: 107 ккал
+          - button "Действия" [ref=e239] [cursor=pointer]:
+            - img [ref=e240]
+        - generic [ref=e244]:
+          - generic [ref=e245]: Обед
+          - generic [ref=e246]: 539 ккал
+          - button "Добавить в «Обед»" [ref=e247] [cursor=pointer]:
+            - img [ref=e248]
+        - generic [ref=e250]:
+          - generic [ref=e251]:
+            - generic [ref=e252]: Творог 5% 200г
+            - generic [ref=e253]: 08:30 · Б34 · Ж10 · У6
+          - generic [ref=e254]: 242 ккал
+          - button "Действия" [ref=e255] [cursor=pointer]:
+            - img [ref=e256]
+        - generic [ref=e260]:
+          - generic [ref=e261]:
+            - generic [ref=e262]: Куриная грудка 180г
+            - generic [ref=e263]: 14:25 · Б56 · Ж6 · У0
+          - generic [ref=e264]: 297 ккал
+          - button "Действия" [ref=e265] [cursor=pointer]:
+            - img [ref=e266]
+        - generic [ref=e270]:
+          - generic [ref=e271]: Ужин
+          - generic [ref=e272]: 121 ккал
+          - button "Добавить в «Ужин»" [ref=e273] [cursor=pointer]:
+            - img [ref=e274]
+        - generic [ref=e276]:
+          - generic [ref=e277]:
+            - generic [ref=e278]: Творог 5% 100г
+            - generic [ref=e279]: 19:40 · Б17 · Ж5 · У3
+          - generic [ref=e280]: 121 ккал
+          - button "Действия" [ref=e281] [cursor=pointer]:
+            - img [ref=e282]
+  - navigation [ref=e89]:
+    - button "Главная" [ref=e90] [cursor=pointer]:
+      - img [ref=e92]
+      - text: Главная
+    - button "Еда" [ref=e96] [cursor=pointer]:
+      - img [ref=e98]
+      - text: Еда
+    - button "Трен" [ref=e103] [cursor=pointer]:
+      - img [ref=e105]
+      - text: Трен
+    - button "Сканер" [ref=e106] [cursor=pointer]:
+      - img [ref=e108]
+      - text: Сканер

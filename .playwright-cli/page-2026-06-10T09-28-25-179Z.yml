@@ -1,0 +1,68 @@
+- generic [ref=e1]:
+  - generic [ref=e114]:
+    - heading "Еда" [level=1] [ref=e117]
+    - generic [ref=e118]:
+      - button "Дневник" [ref=e119] [cursor=pointer]
+      - button "Мои продукты" [ref=e120] [cursor=pointer]
+    - generic [ref=e121]:
+      - generic [ref=e122]:
+        - button "Предыдущий день" [ref=e123] [cursor=pointer]:
+          - img [ref=e124]
+        - generic [ref=e126]: Сегодня
+        - button "Следующий день" [disabled] [ref=e127]:
+          - img [ref=e128]
+      - generic [ref=e130]:
+        - generic [ref=e131]:
+          - generic [ref=e132]: Съедено за день
+          - generic [ref=e133]: 646 ккал
+        - generic [ref=e134]: Б91 · Ж16 · У33
+      - button "Добавить из продуктов" [ref=e135] [cursor=pointer]:
+        - img [ref=e136]
+        - text: Добавить из продуктов
+      - generic [ref=e138]:
+        - generic [ref=e139]:
+          - generic [ref=e140]:
+            - generic [ref=e141]: Творог 5% 200г
+            - generic [ref=e142]: 08:30 · Б34 · Ж10 · У6
+          - generic [ref=e143]: 242 ккал
+          - button "В мои продукты" [ref=e144] [cursor=pointer]:
+            - img [ref=e145]
+          - button "Повторить сегодня" [ref=e147] [cursor=pointer]:
+            - img [ref=e148]
+          - button "Удалить" [ref=e151] [cursor=pointer]:
+            - img [ref=e152]
+        - generic [ref=e154]:
+          - generic [ref=e155]:
+            - generic [ref=e156]: Банан 120г
+            - generic [ref=e157]: 11:10 · Б1 · Ж0 · У27
+          - generic [ref=e158]: 107 ккал
+          - button "В мои продукты" [ref=e159] [cursor=pointer]:
+            - img [ref=e160]
+          - button "Повторить сегодня" [ref=e162] [cursor=pointer]:
+            - img [ref=e163]
+          - button "Удалить" [ref=e166] [cursor=pointer]:
+            - img [ref=e167]
+        - generic [ref=e169]:
+          - generic [ref=e170]:
+            - generic [ref=e171]: Куриная грудка 180г
+            - generic [ref=e172]: 14:25 · Б56 · Ж6 · У0
+          - generic [ref=e173]: 297 ккал
+          - button "В мои продукты" [ref=e174] [cursor=pointer]:
+            - img [ref=e175]
+          - button "Повторить сегодня" [ref=e177] [cursor=pointer]:
+            - img [ref=e178]
+          - button "Удалить" [ref=e181] [cursor=pointer]:
+            - img [ref=e182]
+  - navigation [ref=e89]:
+    - button "Главная" [ref=e90] [cursor=pointer]:
+      - img [ref=e92]
+      - text: Главная
+    - button "Еда" [active] [ref=e96] [cursor=pointer]:
+      - img [ref=e98]
+      - text: Еда
+    - button "Трен" [ref=e103] [cursor=pointer]:
+      - img [ref=e105]
+      - text: Трен
+    - button "Сканер" [ref=e106] [cursor=pointer]:
+      - img [ref=e108]
+      - text: Сканер

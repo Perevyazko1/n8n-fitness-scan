@@ -9,7 +9,7 @@
 <title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=24" />
+<link rel="stylesheet" href="styles.css?v=26" />
 </head>
 <body>
 
@@ -117,6 +117,7 @@
         <div class="muted small" id="fb-macros"></div>
       </div>
       <button id="food-add-from" class="secondary with-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5 V19 M5 12 H19"/></svg> Добавить из продуктов</button>
+      <button id="food-add-manual" class="ghost with-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.4 5.4 l4.2 4.2"/><path d="M5 19 l0.9-3.7 L15.4 5 l3.6 3.6 L9.7 18.1 Z"/></svg> Записать вручную</button>
       <div id="food-loading" class="skeleton">
         <div class="skel-row"><div class="skel skel-line w70"></div><div class="skel skel-line w40"></div></div>
         <div class="skel-row"><div class="skel skel-line w60"></div><div class="skel skel-line w30"></div></div>
@@ -131,45 +132,69 @@
       <div id="food-list" class="hidden"></div>
     </div>
 
-    <!-- режим: мои продукты (справочник, что бот знает) -->
+    <!-- режим: мои продукты (справочник) -->
     <div id="food-products" class="hidden">
+      <button id="prod-new" class="secondary with-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5 V19 M5 12 H19"/></svg> Новый продукт</button>
       <div id="prod-loading" class="skeleton">
         <div class="skel-row"><div class="skel skel-line w70"></div></div>
         <div class="skel-row"><div class="skel skel-line w50"></div></div>
         <div class="skel-row"><div class="skel skel-line w60"></div></div>
       </div>
       <div id="prod-error" class="error-box hidden"></div>
-      <div id="prod-empty" class="soon hidden">Пока нет сохранённых продуктов. Добавь любую запись из дневника кнопкой «＋».</div>
+      <div id="prod-empty" class="soon hidden">Пока нет продуктов. Создай первый кнопкой «Новый продукт» — или сохрани запись из дневника.</div>
       <div id="prod-list" class="hidden"></div>
     </div>
   </div>
 </div>
 
-<!-- ===== Тренировка (Фаза 3) ===== -->
+<!-- ===== Тренировка + Ходьба ===== -->
 <div id="workout" class="screen tab-screen">
   <div class="page">
     <div class="page-head">
       <div><h1>Тренировка</h1><span id="wkt-sub" class="muted small"></span></div>
+    </div>
+    <div class="seg">
+      <button id="wseg-train" class="seg-btn active" data-wmode="train">Тренировка</button>
+      <button id="wseg-walk" class="seg-btn" data-wmode="walk">Ходьба</button>
     </div>
     <div class="daynav">
       <button id="wkt-prev" class="nav-btn" aria-label="Предыдущий день"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6 L8.5 12 L14.5 18"/></svg></button>
       <span id="wkt-day" class="daynav-label">—</span>
       <button id="wkt-next" class="nav-btn" aria-label="Следующий день"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 6 L15.5 12 L9.5 18"/></svg></button>
     </div>
-    <div id="wkt-loading" class="skeleton">
-      <div class="skel-row"><div class="skel skel-line w60"></div><div class="skel skel-sw"></div></div>
-      <div class="skel-row"><div class="skel skel-line w70"></div><div class="skel skel-sw"></div></div>
-      <div class="skel-row"><div class="skel skel-line w50"></div><div class="skel skel-sw"></div></div>
-      <div class="skel-row"><div class="skel skel-line w70"></div><div class="skel skel-sw"></div></div>
+
+    <!-- режим: тренировка -->
+    <div id="wkt-train">
+      <div id="wkt-loading" class="skeleton">
+        <div class="skel-row"><div class="skel skel-line w60"></div><div class="skel skel-sw"></div></div>
+        <div class="skel-row"><div class="skel skel-line w70"></div><div class="skel skel-sw"></div></div>
+        <div class="skel-row"><div class="skel skel-line w50"></div><div class="skel skel-sw"></div></div>
+        <div class="skel-row"><div class="skel skel-line w70"></div><div class="skel skel-sw"></div></div>
+      </div>
+      <div id="wkt-error" class="error-box hidden"></div>
+      <div id="wkt-blocks" class="blocks hidden"></div>
+      <div id="wkt-rest" class="soon hidden"></div>
+      <div id="wkt-list" class="hidden"></div>
+      <button id="wkt-addex" class="secondary with-ico hidden"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5 V19 M5 12 H19"/></svg> Добавить упражнение</button>
+      <button id="wkt-complete" class="primary hidden">Завершить тренировку</button>
+      <button id="wkt-burn" class="ghost hidden">Расход вручную</button>
+      <button id="wkt-uncomplete" class="ghost hidden">Отменить завершение</button>
+      <button id="wkt-edit" class="ghost hidden">Изменить план</button>
     </div>
-    <div id="wkt-error" class="error-box hidden"></div>
-    <div id="wkt-blocks" class="blocks hidden"></div>
-    <div id="wkt-rest" class="soon hidden"></div>
-    <div id="wkt-list" class="hidden"></div>
-    <button id="wkt-addex" class="secondary with-ico hidden"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5 V19 M5 12 H19"/></svg> Добавить упражнение</button>
-    <button id="wkt-complete" class="primary hidden">Завершить тренировку</button>
-    <button id="wkt-uncomplete" class="ghost hidden">Отменить завершение</button>
-    <button id="wkt-edit" class="ghost hidden">Изменить план</button>
+
+    <!-- режим: ходьба -->
+    <div id="wkt-walk" class="hidden">
+      <div class="card stat">
+        <div class="stat-head"><span class="stat-label">Пройдено за день</span><span id="walk-kcal" class="stat-big">+0 ккал</span></div>
+        <div class="muted small" id="walk-sub"></div>
+      </div>
+      <label>Сколько км прошёл</label>
+      <input id="walk-km" type="number" min="0" step="0.1" placeholder="например: 5" />
+      <label>Темп</label>
+      <div class="blocks" id="walk-pace"></div>
+      <button id="walk-save" class="primary">Записать ходьбу</button>
+      <p class="muted small">Расход добавляется к дневному лимиту калорий — в разумных пределах (общий потолок не даст лимиту раздуться).</p>
+    </div>
   </div>
 </div>
 
@@ -278,6 +303,49 @@
   </div>
 </div>
 
+<!-- ===== Создать/изменить продукт (вручную) ===== -->
+<div id="prodform" class="screen">
+  <div class="card">
+    <h2 id="pf-title">Новый продукт</h2>
+    <label>Название</label>
+    <input id="pf-name" placeholder="например: творог 5%" />
+    <div class="grid">
+      <div><label>ккал / 100г</label><input id="pf-kcal" type="number" min="0" step="1" /></div>
+      <div><label>порция, г</label><input id="pf-serving" type="number" min="1" step="1" /></div>
+      <div><label>белок / 100г</label><input id="pf-protein" type="number" min="0" step="0.1" /></div>
+      <div><label>жир / 100г</label><input id="pf-fat" type="number" min="0" step="0.1" /></div>
+      <div><label>углеводы / 100г</label><input id="pf-carbs" type="number" min="0" step="0.1" /></div>
+    </div>
+    <button id="pf-save" class="primary">Сохранить</button>
+    <button id="pf-cancel" class="ghost">Отмена</button>
+  </div>
+</div>
+
+<!-- ===== Свободная запись еды в дневник (вручную) ===== -->
+<div id="manualfood" class="screen">
+  <div class="card">
+    <h2>Запись вручную</h2>
+    <label>Что съел</label>
+    <input id="mf-desc" placeholder="например: борщ, тарелка" />
+    <div class="grid">
+      <div><label>ккал</label><input id="mf-kcal" type="number" min="0" step="1" /></div>
+      <div><label>приём пищи</label>
+        <select id="mf-meal">
+          <option value="">по времени</option>
+          <option value="завтрак">Завтрак</option>
+          <option value="обед">Обед</option>
+          <option value="перекус">Перекус</option>
+          <option value="ужин">Ужин</option>
+        </select></div>
+      <div><label>белок, г</label><input id="mf-protein" type="number" min="0" step="0.1" /></div>
+      <div><label>жир, г</label><input id="mf-fat" type="number" min="0" step="0.1" /></div>
+      <div><label>углеводы, г</label><input id="mf-carbs" type="number" min="0" step="0.1" /></div>
+    </div>
+    <button id="mf-save" class="primary">Добавить в дневник</button>
+    <button id="mf-cancel" class="ghost">Отмена</button>
+  </div>
+</div>
+
 <!-- ===== Форма упражнения (добавить/изменить) ===== -->
 <div id="exform" class="screen">
   <div class="card">
@@ -292,10 +360,37 @@
     </div>
     <label>Вес</label>
     <input id="exf-weight" placeholder="например: 60кг" />
+    <div class="grid">
+      <div><label>MET (расход)</label><input id="exf-met" type="number" min="0" step="0.1" placeholder="авто" /></div>
+      <div><label>минут</label><input id="exf-min" type="number" min="0" step="1" placeholder="авто" /></div>
+    </div>
     <label>Заметка</label>
     <input id="exf-note" placeholder="необязательно" />
     <button id="exf-save" class="primary">Сохранить</button>
     <button id="exf-cancel" class="ghost">Отмена</button>
+  </div>
+</div>
+
+<!-- ===== Блок плана (создать/переименовать/удалить) ===== -->
+<div id="blockform" class="screen">
+  <div class="card">
+    <h2 id="bf-title">Блок плана</h2>
+    <label>Название блока</label>
+    <input id="bf-label" placeholder="например: №1 — Грудь + Бицепс" />
+    <button id="bf-save" class="primary">Сохранить</button>
+    <button id="bf-delete" class="ghost hidden">Удалить блок</button>
+    <button id="bf-cancel" class="ghost">Отмена</button>
+  </div>
+</div>
+
+<!-- ===== Расход тренировки (ручной ввод) ===== -->
+<div id="burnform" class="screen">
+  <div class="card">
+    <h2>Расход тренировки</h2>
+    <p class="muted small">Сколько калорий потратил. По умолчанию считаем по отмеченным упражнениям.</p>
+    <div class="grams-row"><label>ккал:</label><input id="bn-kcal" type="number" min="0" step="1" /></div>
+    <button id="bn-save" class="primary">Завершить тренировку</button>
+    <button id="bn-cancel" class="ghost">Отмена</button>
   </div>
 </div>
 
@@ -308,6 +403,10 @@
     </div>
     <div id="set-loading" class="loading">Загрузка…</div>
     <div id="set-content" class="hidden">
+      <div id="set-onboard-hint" class="onboard-hint hidden">
+        <b>Заполни профиль, чтобы начать.</b> По нему Рыж посчитает дневную норму калорий и
+        Б/Ж/У. Дальше откроются дневник, тренировки и ходьба.
+      </div>
       <div class="card stat">
         <div class="stat-label" style="margin-bottom:6px;">Параметры тела</div>
         <div class="grid">
@@ -351,12 +450,13 @@
   </div>
 </div>
 
-<!-- ===== Блок доступа (не зарегистрирован) ===== -->
+<!-- ===== Блок доступа (забанен владельцем) ===== -->
 <div id="reggate" class="screen">
   <div class="card" style="text-align:center; align-items:center; justify-content:center; height:100%;">
     <span class="stat-ico-box" style="width:64px;height:64px;flex:0 0 64px;border-radius:50%;"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.8" y="10.8" width="14.4" height="9.2" rx="2.4"/><path d="M8 10.8 V8.2 a4 4 0 0 1 8 0 v2.6"/><path d="M12 14.4 v2"/></svg></span>
     <h2>Доступ закрыт</h2>
-    <p class="muted">Чтобы открыть приложение, отправь боту в чат <b>пароль доступа</b>. После этого переоткрой приложение.</p>
+    <p class="muted">Доступ к приложению открывает владелец. Сообщи ему свой ID — и он откроет доступ.</p>
+    <p class="muted small">Твой ID: <b id="reg-id">—</b></p>
     <button id="reg-bot" class="primary">Вернуться в чат</button>
   </div>
 </div>
@@ -371,6 +471,6 @@
   <button class="tab" data-tab="scanner"><span class="tab-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5 V6.4 A1.4 1.4 0 0 1 5.4 5 H7.6"/><path d="M20 8.5 V6.4 A1.4 1.4 0 0 0 18.6 5 H16.4"/><path d="M4 15.5 V17.6 A1.4 1.4 0 0 0 5.4 19 H7.6"/><path d="M20 15.5 V17.6 A1.4 1.4 0 0 1 18.6 19 H16.4"/><path d="M8.8 9 V15"/><path d="M12 9 V15"/><path d="M15.2 9 V15"/></svg></span>Сканер</button>
 </nav>
 
-<script src="main.js?v=24"></script>
+<script src="main.js?v=26"></script>
 </body>
 </html>

@@ -33,6 +33,8 @@ const screens = {
   dashboard: $('dashboard'), foodlog: $('foodlog'), workout: $('workout'),
   scanner: $('scanner'), card: $('card'), notfound: $('notfound'), manual: $('manual'),
   addproduct: $('addproduct'), pickproduct: $('pickproduct'), logfood: $('logfood'), exform: $('exform'),
+  prodform: $('prodform'), manualfood: $('manualfood'),
+  blockform: $('blockform'), burnform: $('burnform'),
   settings: $('settings'), reggate: $('reggate'),
 };
 
@@ -84,7 +86,7 @@ async function api(path, payload = {}) {
   });
   let data = null;
   try { data = await r.json(); } catch {}
-  // не зарегистрирован → экран-блок «отправь пароль боту»
+  // доступ к приложению закрыт владельцем → экран-блок
   if (r.status === 403 && data && data.error === 'not_registered') {
     showRegGate();
     throw new Error('not_registered');
@@ -96,11 +98,42 @@ async function api(path, payload = {}) {
 function showRegGate() {
   const tb = document.getElementById('tabbar');
   if (tb) tb.style.display = 'none';
+  const idEl = document.getElementById('reg-id');
+  if (idEl) idEl.textContent = tg?.initDataUnsafe?.user?.id || '—';
   showScreen('reggate');
+}
+
+// === Онбординг: пока профиль не заполнен — держим на Настройках ===
+let onboarding = false;
+
+async function boot() {
+  try {
+    const d = await api('profile');
+    if (d && d.complete === false) { startOnboarding(); return; }
+  } catch (e) {
+    if (e.message === 'not_registered') return;   // забанен → reggate уже показан
+    // прочие ошибки сети не блокируют — пустим на главную
+  }
+  goTab('dashboard');
+}
+
+function startOnboarding() {
+  onboarding = true;
+  const tb = document.getElementById('tabbar');
+  if (tb) tb.style.display = 'none';
+  openSettings();
+}
+
+function endOnboarding() {
+  onboarding = false;
+  const tb = document.getElementById('tabbar');
+  if (tb) tb.style.display = '';
+  goTab('dashboard');
 }
 
 // === Навигация по вкладкам ===
 function goTab(name) {
+  if (onboarding) return;   // во время онбординга навигация заблокирована
   if (name !== currentTab) tg?.HapticFeedback?.selectionChanged?.();
   currentTab = name;
   document.querySelectorAll('.tab').forEach(t =>
@@ -113,7 +146,7 @@ function goTab(name) {
   stopScanner();              // уходим с камеры — гасим её
   showScreen(name);
   if (name === 'dashboard') loadDashboard();
-  if (name === 'workout') { wktEdit = false; loadWorkout(); }
+  if (name === 'workout') { wktEdit = false; setWktMode('train'); }
   if (name === 'foodlog') setFoodMode('diary');
 }
 
@@ -266,6 +299,10 @@ function setMacro(key, m, unit) {
 // === Настройки (профиль + КБЖУ) ===
 async function openSettings() {
   showScreen('settings');
+  // в онбординге: прячем «закрыть», показываем подсказку, меняем текст кнопки
+  $('set-close').style.display = onboarding ? 'none' : '';
+  $('set-onboard-hint').classList.toggle('hidden', !onboarding);
+  $('set-save').textContent = onboarding ? 'Сохранить и начать' : 'Сохранить параметры';
   $('set-loading').classList.remove('hidden');
   $('set-content').classList.add('hidden');
   try {
@@ -276,7 +313,8 @@ async function openSettings() {
     $('set-content').classList.remove('hidden');
   } catch (e) {
     showStatus('Ошибка: ' + e.message, true, 3000);
-    goTab('dashboard');
+    if (onboarding) { $('set-loading').classList.add('hidden'); $('set-content').classList.remove('hidden'); }
+    else goTab('dashboard');
   }
 }
 
@@ -310,11 +348,28 @@ function settingsPayload() {
 }
 
 async function saveSettings() {
+  if (onboarding) return onboardingSave();
   try {
     const res = await api('profile-save', settingsPayload());
     if (res.ok === false) throw new Error(res.error || 'fail');
     tg?.HapticFeedback?.notificationOccurred?.('success');
     showStatus('Сохранено ✓', false, 1500);
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  }
+}
+
+// Онбординг: сохранить параметры + посчитать КБЖУ → разблокировать приложение.
+async function onboardingSave() {
+  const p = settingsPayload();
+  if (!p.height_cm || !p.weight_kg || !p.age) { showStatus('Заполни рост, вес и возраст', true); return; }
+  try {
+    await api('profile-save', p);
+    const r = await api('profile-recalc');
+    if (r.ok === false) throw new Error(r.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showStatus('Профиль готов ✓', false, 1200);
+    endOnboarding();
   } catch (e) {
     showStatus('Не вышло: ' + e.message, true, 3000);
   }
@@ -342,6 +397,7 @@ let wktEdit = false;           // режим «изменить план»
 let exEditing = null;          // упражнение в форме (null = новое)
 let wktViewDate = null;        // YYYY-MM-DD — открытый день
 let wktServerToday = null;     // серверное «сегодня»
+let currentEstKcal = 0;        // расчётный расход по отмеченным упражнениям
 
 async function loadWorkout(forcedBlock) {
   $('wkt-loading').classList.remove('hidden');
@@ -350,6 +406,7 @@ async function loadWorkout(forcedBlock) {
   $('wkt-rest').classList.add('hidden');
   $('wkt-list').classList.add('hidden');
   $('wkt-complete').classList.add('hidden');
+  $('wkt-burn').classList.add('hidden');
   $('wkt-uncomplete').classList.add('hidden');
   $('wkt-addex').classList.add('hidden');
   $('wkt-edit').classList.add('hidden');
@@ -383,6 +440,23 @@ function renderWktBlocks(d) {
     chip.addEventListener('click', () => loadWorkout(b.block_num));
     box.appendChild(chip);
   }
+  // в режиме редактирования: переименовать текущий блок + создать новый
+  if (wktEdit) {
+    if (d.selected_block) {
+      const rn = document.createElement('button');
+      rn.className = 'chip';
+      rn.innerHTML = iconSvg('edit', 15);
+      rn.setAttribute('aria-label', 'Переименовать блок');
+      rn.addEventListener('click', () => openBlockForm(d.selected_block, d.label));
+      box.appendChild(rn);
+    }
+    const add = document.createElement('button');
+    add.className = 'chip';
+    add.innerHTML = iconSvg('plus', 15);
+    add.setAttribute('aria-label', 'Новый блок');
+    add.addEventListener('click', () => openBlockForm(null, ''));
+    box.appendChild(add);
+  }
   box.classList.toggle('hidden', !(d.blocks && d.blocks.length));
 }
 
@@ -396,7 +470,7 @@ function stepWktDay(delta) {
   const next = addDaysStr(wktViewDate, delta);
   if (delta > 0 && wktServerToday && next > wktServerToday) return;
   wktViewDate = next;
-  loadWorkout();
+  if (wktMode === 'walk') loadWalking(); else loadWorkout();
 }
 
 function renderWorkout(d) {
@@ -409,6 +483,7 @@ function renderWorkout(d) {
     $('wkt-sub').textContent = '';
     $('wkt-list').classList.add('hidden');
     $('wkt-complete').classList.add('hidden');
+    $('wkt-burn').classList.add('hidden');
     $('wkt-uncomplete').classList.add('hidden');
     $('wkt-addex').classList.add('hidden');
     $('wkt-edit').classList.add('hidden');
@@ -421,6 +496,7 @@ function renderWorkout(d) {
   }
 
   $('wkt-rest').classList.add('hidden');
+  currentEstKcal = Math.round(d.est_kcal || 0);
   const exs = currentExercises;
   const doneCount = exs.filter(e => e.done).length;
   $('wkt-sub').textContent = wktEdit
@@ -450,19 +526,24 @@ function renderWorkout(d) {
   // Кнопки завершения. В режиме редактирования обе прячем.
   const complete = $('wkt-complete');
   const uncomplete = $('wkt-uncomplete');
+  const burn = $('wkt-burn');
   if (wktEdit) {
     complete.classList.add('hidden');
+    burn.classList.add('hidden');
     uncomplete.classList.add('hidden');
   } else if (d.logged) {
     // тренировка уже подтверждена → кнопку деактивируем, показываем «отменить»
     complete.textContent = 'Тренировка завершена ✓';
     complete.disabled = true;
     complete.classList.remove('hidden');
+    burn.classList.add('hidden');
     uncomplete.classList.remove('hidden');
   } else {
-    complete.textContent = 'Завершить тренировку';
+    complete.textContent = currentEstKcal > 0
+      ? `Завершить · ~${currentEstKcal} ккал` : 'Завершить тренировку';
     complete.disabled = false;
     complete.classList.remove('hidden');
+    burn.classList.remove('hidden');     // «Расход вручную»
     uncomplete.classList.add('hidden');
   }
 }
@@ -513,6 +594,8 @@ function openExForm(ex) {
   $('exf-sets').value = ex?.sets || '';
   $('exf-reps').value = ex?.reps || '';
   $('exf-weight').value = ex?.weight || '';
+  $('exf-met').value = ex?.met ?? '';
+  $('exf-min').value = ex?.default_min ?? '';
   $('exf-note').value = ex?.note || '';
   showScreen('exform');
 }
@@ -520,6 +603,8 @@ function openExForm(ex) {
 async function exfSave() {
   const name = $('exf-name').value.trim();
   if (!name) { showStatus('Впиши название упражнения', true); return; }
+  const met = $('exf-met').value.trim();
+  const dmin = $('exf-min').value.trim();
   try {
     const res = await api('exercise-save', {
       id: exEditing?.db_id,
@@ -530,6 +615,8 @@ async function exfSave() {
       reps: $('exf-reps').value.trim(),
       weight: $('exf-weight').value.trim(),
       note: $('exf-note').value.trim(),
+      ...(met ? { met: Number(met) } : {}),        // пусто → бэк оценит по категории
+      ...(dmin ? { default_min: Number(dmin) } : {}),
     });
     if (res.ok === false) throw new Error(res.error || 'fail');
     tg?.HapticFeedback?.notificationOccurred?.('success');
@@ -538,6 +625,59 @@ async function exfSave() {
   } catch (e) {
     showStatus('Не вышло: ' + e.message, true, 3000);
   }
+}
+
+// --- Блоки плана (создать/переименовать/удалить) ---
+let bfBlock = null;
+
+function openBlockForm(blockNum, label) {
+  bfBlock = blockNum || null;
+  $('bf-title').textContent = bfBlock ? 'Переименовать блок' : 'Новый блок';
+  $('bf-label').value = label || '';
+  $('bf-delete').classList.toggle('hidden', !bfBlock);
+  showScreen('blockform');
+}
+
+async function blockSave() {
+  const label = $('bf-label').value.trim();
+  if (!label) { showStatus('Впиши название блока', true); return; }
+  try {
+    const res = await api('block-save', { ...(bfBlock ? { block_num: bfBlock } : {}), label });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showScreen('workout');
+    loadWorkout(res.block_num || bfBlock || currentWorkout.block_num);
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  }
+}
+
+async function blockDelete() {
+  if (!bfBlock) return;
+  const okc = await confirmDialog('Удалить блок и все его упражнения?');
+  if (!okc) return;
+  try {
+    const res = await api('block-delete', { block_num: bfBlock });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showScreen('workout');
+    loadWorkout();   // без forced — выбор блока заново
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  }
+}
+
+// --- Ручной ввод расхода ---
+function openBurnForm() {
+  $('bn-kcal').value = currentEstKcal || '';
+  showScreen('burnform');
+}
+
+async function burnSave() {
+  const v = Number($('bn-kcal').value);
+  if (!(v >= 0)) { showStatus('Впиши ккал', true); return; }
+  showScreen('workout');
+  completeWorkout(v);
 }
 
 async function exDelete(ex) {
@@ -553,11 +693,13 @@ async function exDelete(ex) {
   }
 }
 
-async function completeWorkout() {
+async function completeWorkout(override) {
   const btn = $('wkt-complete');
   btn.disabled = true;
   try {
-    const res = await api('complete-workout', { date: currentWorkout.date, block: currentWorkout.block_num });
+    const payload = { date: currentWorkout.date, block: currentWorkout.block_num };
+    if (typeof override === 'number') payload.kcal_burned = override;   // ручной приоритет
+    const res = await api('complete-workout', payload);
     if (res.ok === false) throw new Error(res.error || 'fail');
     tg?.HapticFeedback?.notificationOccurred?.('success');
     showStatus(`Тренировка зафиксирована ✓ (+${res.kcal_burned || 0} ккал)`, false, 2000);
@@ -651,12 +793,67 @@ function bumpWorkoutCount() {
   $('wkt-sub').textContent = `${sub} · выполнено ${done} из ${total}`;
 }
 
+// === Ходьба (раздел в трен-вкладке) ===
+let wktMode = 'train';   // train | walk
+let walkPace = 'brisk';
+
+function setWktMode(mode) {
+  wktMode = mode;
+  document.querySelectorAll('[data-wmode]').forEach(b => b.classList.toggle('active', b.dataset.wmode === mode));
+  $('wkt-train').classList.toggle('hidden', mode !== 'train');
+  $('wkt-walk').classList.toggle('hidden', mode !== 'walk');
+  if (mode === 'walk') { $('wkt-sub').textContent = ''; loadWalking(); }
+  else loadWorkout();
+}
+
+async function loadWalking() {
+  try {
+    const d = await api('walking', wktViewDate ? { date: wktViewDate } : {});
+    if (!wktServerToday) wktServerToday = d.date;
+    if (!wktViewDate) wktViewDate = d.date;
+    walkPace = d.pace || 'brisk';
+    $('walk-km').value = d.km || '';
+    $('walk-kcal').textContent = `+${d.kcal_burned || 0} ккал`;
+    $('walk-sub').textContent = `Всего ходьбы за день: ${d.day_total_kcal || 0} ккал`;
+    renderPacePills();
+    updateWktDayNav();
+  } catch (e) {
+    showStatus('Ошибка: ' + e.message, true, 3000);
+  }
+}
+
+const WALK_PACES = [['stroll', 'Прогулочный'], ['brisk', 'Бодрый'], ['fast', 'Быстрый'], ['jog', 'Бег']];
+function renderPacePills() {
+  const box = $('walk-pace');
+  box.innerHTML = '';
+  for (const [val, label] of WALK_PACES) {
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (val === walkPace ? ' active' : '');
+    chip.textContent = label;
+    chip.addEventListener('click', () => { walkPace = val; renderPacePills(); });
+    box.appendChild(chip);
+  }
+}
+
+async function walkSave() {
+  const km = Number($('walk-km').value) || 0;
+  try {
+    const res = await api('log-walking', { date: wktViewDate || wktServerToday, km, pace: walkPace });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showStatus(km > 0 ? `Записано · +${res.kcal_burned} ккал ✓` : 'Ходьба убрана', false, 1800);
+    loadWalking();
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  }
+}
+
 // === Еда: режимы (дневник / мои продукты) ===
 let foodMode = 'diary';
 
 function setFoodMode(mode) {
   foodMode = mode;
-  document.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.querySelectorAll('#foodlog .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   $('food-diary').classList.toggle('hidden', mode !== 'diary');
   $('food-products').classList.toggle('hidden', mode !== 'products');
   if (mode === 'diary') loadFoodLog(); else loadProducts();
@@ -696,7 +893,7 @@ function renderProducts(items) {
   list.innerHTML = '';
   for (const p of items) {
     const row = document.createElement('div');
-    row.className = 'food';
+    row.className = 'food pick';
     const main = document.createElement('div');
     main.className = 'food-main';
     const nm = document.createElement('div');
@@ -712,9 +909,80 @@ function renderProducts(items) {
     main.appendChild(nm);
     main.appendChild(sub);
     row.appendChild(main);
+    row.addEventListener('click', () => openProdForm(p));   // тап → правка
     list.appendChild(row);
   }
   list.classList.remove('hidden');
+}
+
+// --- Создать / изменить продукт вручную ---
+function openProdForm(p) {
+  const e = p || {};
+  $('pf-title').textContent = p ? 'Изменить продукт' : 'Новый продукт';
+  $('pf-name').value = e.name || '';
+  $('pf-kcal').value = e.kcal_per_100g ?? '';
+  $('pf-serving').value = e.default_serving_g ?? '';
+  $('pf-protein').value = e.protein_per_100g ?? '';
+  $('pf-fat').value = e.fat_per_100g ?? '';
+  $('pf-carbs').value = e.carbs_per_100g ?? '';
+  showScreen('prodform');
+}
+
+async function prodSave() {
+  const name = $('pf-name').value.trim();
+  const kcal = Number($('pf-kcal').value);
+  if (!name) { showStatus('Впиши название', true); return; }
+  if (!kcal) { showStatus('Впиши ккал/100г', true); return; }
+  try {
+    const res = await api('save-product', {
+      name,
+      kcal_per_100g: kcal,
+      protein_per_100g: Number($('pf-protein').value) || 0,
+      fat_per_100g: Number($('pf-fat').value) || 0,
+      carbs_per_100g: Number($('pf-carbs').value) || 0,
+      default_serving_g: Number($('pf-serving').value) || 100,
+    });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showStatus('Сохранено ✓', false, 1500);
+    showScreen('foodlog');
+    setFoodMode('products');
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  }
+}
+
+// --- Свободная запись еды в дневник (без продукта) ---
+function openManualFood() {
+  ['mf-desc', 'mf-kcal', 'mf-protein', 'mf-fat', 'mf-carbs'].forEach(id => $(id).value = '');
+  $('mf-meal').value = '';
+  showScreen('manualfood');
+}
+
+async function manualFoodSave() {
+  const desc = $('mf-desc').value.trim();
+  const kcal = Number($('mf-kcal').value);
+  if (!desc) { showStatus('Впиши, что съел', true); return; }
+  if (!kcal) { showStatus('Впиши ккал', true); return; }
+  const meal = $('mf-meal').value;
+  try {
+    const res = await api('repeat-food', {
+      date: viewDate || serverToday,
+      description: desc,
+      kcal,
+      protein: Number($('mf-protein').value) || 0,
+      fat: Number($('mf-fat').value) || 0,
+      carbs: Number($('mf-carbs').value) || 0,
+      ...(meal ? { meal_type: meal } : {}),
+    });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showStatus('Добавлено в дневник ✓', false, 1500);
+    showScreen('foodlog');
+    setFoodMode('diary');
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  }
 }
 
 // --- Добавить позицию дневника в «Мои продукты» ---
@@ -1447,25 +1715,40 @@ $('set-recalc').addEventListener('click', recalcSettings);
 $('reg-bot').addEventListener('click', () => tg?.close?.());
 $('wkt-prev').addEventListener('click', () => stepWktDay(-1));
 $('wkt-next').addEventListener('click', () => stepWktDay(1));
-$('wkt-complete').addEventListener('click', completeWorkout);
+$('wkt-complete').addEventListener('click', () => completeWorkout());
+$('wkt-burn').addEventListener('click', openBurnForm);
 $('wkt-uncomplete').addEventListener('click', uncompleteWorkout);
 $('wkt-edit').addEventListener('click', toggleWktEdit);
 $('wkt-addex').addEventListener('click', () => openExForm(null));
 $('exf-save').addEventListener('click', exfSave);
 $('exf-cancel').addEventListener('click', () => showScreen('workout'));
+$('bf-save').addEventListener('click', blockSave);
+$('bf-delete').addEventListener('click', blockDelete);
+$('bf-cancel').addEventListener('click', () => showScreen('workout'));
+$('bn-save').addEventListener('click', burnSave);
+$('bn-cancel').addEventListener('click', () => showScreen('workout'));
+document.querySelectorAll('[data-wmode]').forEach(b =>
+  b.addEventListener('click', () => setWktMode(b.dataset.wmode)));
+$('walk-save').addEventListener('click', walkSave);
 $('food-prev').addEventListener('click', () => stepDay(-1));
 $('food-next').addEventListener('click', () => stepDay(1));
-document.querySelectorAll('.seg-btn').forEach(b =>
+document.querySelectorAll('#foodlog .seg-btn').forEach(b =>
   b.addEventListener('click', () => setFoodMode(b.dataset.mode)));
 $('ap-grams').addEventListener('input', apUpdatePreview);
 $('ap-save').addEventListener('click', apSave);
 $('ap-cancel').addEventListener('click', () => goTab('foodlog'));
 $('food-add-from').addEventListener('click', openPickProduct);
+$('food-add-manual').addEventListener('click', openManualFood);
+$('prod-new').addEventListener('click', () => openProdForm(null));
+$('pf-save').addEventListener('click', prodSave);
+$('pf-cancel').addEventListener('click', () => showScreen('foodlog'));
+$('mf-save').addEventListener('click', manualFoodSave);
+$('mf-cancel').addEventListener('click', () => showScreen('foodlog'));
 $('pp-close').addEventListener('click', () => goTab('foodlog'));
 $('pp-search').addEventListener('input', (e) => renderPickList(e.target.value));
 $('lf-grams').addEventListener('input', lfUpdatePreview);
 $('lf-add').addEventListener('click', lfAdd);
 $('lf-cancel').addEventListener('click', () => showScreen('pickproduct'));
 
-// === Старт: открываемся на главной (не на камере) ===
-window.addEventListener('load', () => goTab('dashboard'));
+// === Старт: профиль не заполнен → онбординг на Настройках, иначе Главная ===
+window.addEventListener('load', boot);

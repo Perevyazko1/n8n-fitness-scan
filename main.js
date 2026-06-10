@@ -450,6 +450,8 @@ async function loadWorkout(forcedBlock) {
   $('wkt-burn').classList.add('hidden');
   $('wkt-uncomplete').classList.add('hidden');
   $('wkt-addex').classList.add('hidden');
+  $('wkt-editblock').classList.add('hidden');
+  $('wkt-newblock').classList.add('hidden');
   $('wkt-edit').classList.add('hidden');
   try {
     const payload = {};
@@ -481,23 +483,6 @@ function renderWktBlocks(d) {
     chip.addEventListener('click', () => loadWorkout(b.block_num));
     box.appendChild(chip);
   }
-  // в режиме редактирования: переименовать текущий блок + создать новый
-  if (wktEdit) {
-    if (d.selected_block) {
-      const rn = document.createElement('button');
-      rn.className = 'chip';
-      rn.innerHTML = iconSvg('edit', 15);
-      rn.setAttribute('aria-label', 'Переименовать блок');
-      rn.addEventListener('click', () => openBlockForm(d.selected_block, d.label));
-      box.appendChild(rn);
-    }
-    const add = document.createElement('button');
-    add.className = 'chip';
-    add.innerHTML = iconSvg('plus', 15);
-    add.setAttribute('aria-label', 'Новый блок');
-    add.addEventListener('click', () => openBlockForm(null, ''));
-    box.appendChild(add);
-  }
   box.classList.toggle('hidden', !(d.blocks && d.blocks.length));
 }
 
@@ -519,6 +504,18 @@ function renderWorkout(d) {
   currentExercises = d.exercises || [];
   renderWktBlocks(d);
 
+  // У нового юзера плана нет вообще — предлагаем создать первый блок.
+  if (!d.blocks || !d.blocks.length) {
+    $('wkt-sub').textContent = '';
+    $('wkt-list').classList.add('hidden');
+    $('wkt-edit').classList.add('hidden');
+    const hint = $('wkt-rest');
+    hint.textContent = 'У тебя ещё нет плана тренировок. Создай первый блок — например «№1 — Грудь + Бицепс» — и добавь в него упражнения.';
+    hint.classList.remove('hidden');
+    $('wkt-newblock').classList.remove('hidden');
+    return;
+  }
+
   if (!d.selected_block) {
     // блок не выбран — просим выбрать (работает для любого дня, в т.ч. задним числом)
     $('wkt-sub').textContent = '';
@@ -533,6 +530,7 @@ function renderWorkout(d) {
       ? 'Сегодня отдых. Если всё же потренировался — выбери блок выше, чтобы отметить.'
       : 'Выбери блок выше, чтобы отметить тренировку за этот день.';
     hint.classList.remove('hidden');
+    $('wkt-newblock').classList.remove('hidden');
     return;
   }
 
@@ -563,6 +561,8 @@ function renderWorkout(d) {
   $('wkt-edit').textContent = wktEdit ? 'Готово' : 'Изменить план';
   $('wkt-edit').classList.remove('hidden');
   $('wkt-addex').classList.toggle('hidden', !wktEdit);
+  $('wkt-editblock').classList.toggle('hidden', !wktEdit);   // переименовать/удалить текущий блок
+  $('wkt-newblock').classList.toggle('hidden', !wktEdit);    // создать новый блок
 
   // Кнопки завершения. В режиме редактирования обе прячем.
   const complete = $('wkt-complete');
@@ -682,12 +682,14 @@ function openBlockForm(blockNum, label) {
 async function blockSave() {
   const label = $('bf-label').value.trim();
   if (!label) { showStatus('Впиши название блока', true); return; }
+  const wasNew = !bfBlock;
   try {
     const res = await api('block-save', { ...(bfBlock ? { block_num: bfBlock } : {}), label });
     if (res.ok === false) throw new Error(res.error || 'fail');
     tg?.HapticFeedback?.notificationOccurred?.('success');
+    if (wasNew) wktEdit = true;   // новый блок → сразу режим правки, чтоб добавить упражнения
     showScreen('workout');
-    loadWorkout(res.block_num || bfBlock || currentWorkout.block_num);
+    loadWorkout(res.block_num || bfBlock || (currentWorkout && currentWorkout.block_num));
   } catch (e) {
     showStatus('Не вышло: ' + e.message, true, 3000);
   }
@@ -1763,6 +1765,8 @@ $('wkt-prev').addEventListener('click', () => stepWktDay(-1));
 $('wkt-next').addEventListener('click', () => stepWktDay(1));
 $('wkt-complete').addEventListener('click', () => completeWorkout());
 $('wkt-burn').addEventListener('click', openBurnForm);
+$('wkt-editblock').addEventListener('click', () => openBlockForm(currentWorkout?.block_num, currentWorkout?.label || ''));
+$('wkt-newblock').addEventListener('click', () => openBlockForm(null, ''));
 $('wkt-uncomplete').addEventListener('click', uncompleteWorkout);
 $('wkt-edit').addEventListener('click', toggleWktEdit);
 $('wkt-addex').addEventListener('click', () => openExForm(null));

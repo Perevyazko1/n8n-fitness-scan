@@ -178,12 +178,21 @@ function setCalRing(eaten, target) {
   arc.style.stroke = over ? 'var(--danger)' : 'var(--accent)';
 }
 
+// Эмоция лиса на СЕГОДНЯ (поверх тира тела). Пока один сет: 'hungry' | 'normal'.
+// Ничего не залогировано за день → голодный/усталый; поел → обычный (довольный) вид.
+function foxMood(d) {
+  const k = d.kcal || {};
+  if ((k.eaten || 0) <= 0) return 'hungry';
+  return 'normal';
+}
+
 // Голос Рыжа — одна живая строка по состоянию дня.
 function ryzhVoice(d) {
   const st = d.streaks || {}, k = d.kcal || {}, w = d.workout_today || {};
   const left = Math.round(k.left ?? 0);
   const frozen = (st.nutrition && st.nutrition.status === 'frozen')
               || (st.workout && st.workout.status === 'frozen');
+  if ((k.eaten || 0) <= 0) return 'Рыж проголодался — занеси, что ел сегодня, и он повеселеет.';
   if (frozen) return 'Стрик под угрозой — залогируй, пока я не замёрз.';
   if (left < 0) return `Перебор на ${-left} ккал. Завтра аккуратнее — я в тебя верю.`;
   if (w.is_workout && w.done) return 'Тренировка закрыта, питание в норме. Красавчик!';
@@ -194,14 +203,19 @@ function ryzhVoice(d) {
 function renderDashboard(d) {
   $('dash-date').textContent = d.date || '';
 
-  // --- Маскот-лис (тело по тирам мышцы×живот) ---
+  // --- Маскот-лис: тир тела (мышцы×живот) + эмоция на сегодня ---
+  // Голодный сет (_hungry) добавляется в img/ постепенно; пока какого-то нет —
+  // показываем «битую» картинку (это норм, заполняется по мере генерации арта).
   const av = d.avatar || {};
   const m = av.muscle_tier ?? 2, b = av.belly_tier ?? 1;  // дефолт — середина
+  const mood = foxMood(d);
   const fox = $('fox-avatar');
   if (fox) {
-    fox.onerror = () => { fox.style.display = 'none'; };   // картинки нет → не ломаем медальон
+    fox.onerror = null;          // не прячем и не откатываем — пусть будет битая, если арта нет
     fox.style.display = '';
-    fox.src = `img/fox_m${m}_b${b}.png`;
+    fox.src = mood === 'hungry'
+      ? `img/fox_m${m}_b${b}_hungry.png`
+      : `img/fox_m${m}_b${b}.png`;
   }
 
   // --- Голос Рыжа ---
@@ -1169,6 +1183,7 @@ async function startScanner() {
       // err каждые ~80мс на «ничего не нашли» — это норма, не показываем.
     });
 
+    setupTorch();   // показать кнопку фонарика, если устройство умеет
     showStatus('Наведи на штрихкод…', false, 0);
   } catch (e) {
     console.error(e);
@@ -1176,9 +1191,46 @@ async function startScanner() {
   }
 }
 
+// === Фонарик (torch) ===
+let torchTrack = null;
+let torchOn = false;
+
+function setupTorch() {
+  const btn = $('btn-torch');
+  torchTrack = null; torchOn = false;
+  btn.classList.remove('on');
+  try {
+    const stream = $('video').srcObject;
+    const track = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+    const caps = track && track.getCapabilities ? track.getCapabilities() : {};
+    if (track && caps && caps.torch) {
+      torchTrack = track;
+      btn.classList.remove('hidden');     // устройство умеет вспышку
+    } else {
+      btn.classList.add('hidden');        // iOS Safari и т.п. — torch в вебе недоступен
+    }
+  } catch { btn.classList.add('hidden'); }
+}
+
+async function toggleTorch() {
+  if (!torchTrack) return;
+  const next = !torchOn;
+  try {
+    await torchTrack.applyConstraints({ advanced: [{ torch: next }] });
+    torchOn = next;
+    $('btn-torch').classList.toggle('on', torchOn);
+    tg?.HapticFeedback?.impactOccurred?.('light');
+  } catch (e) {
+    showStatus('Фонарик недоступен', true, 2000);
+  }
+}
+
 function stopScanner() {
   scanning = false;
   try { codeReader?.reset?.(); } catch {}
+  torchTrack = null; torchOn = false;
+  $('btn-torch').classList.add('hidden');
+  $('btn-torch').classList.remove('on');
   $('status').classList.add('hidden');   // не оставляем висящий статус при уходе со сканера
 }
 
@@ -1346,6 +1398,7 @@ $('btn-save').addEventListener('click', (e) => postWebhook(savePayload(), e.curr
 $('btn-rescan').addEventListener('click', startScanner);
 $('btn-rescan2').addEventListener('click', startScanner);
 
+$('btn-torch').addEventListener('click', toggleTorch);
 $('btn-manual').addEventListener('click', () => {
   stopScanner();
   $('manual-code').value = '';

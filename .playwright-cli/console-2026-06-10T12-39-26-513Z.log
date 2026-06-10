@@ -1,0 +1,25 @@
+[     426ms] [LOG] [Telegram.WebView] > postEvent web_app_set_header_color {color_key: bg_color} @ https://telegram.org/js/telegram-web-app.js:134
+[     429ms] [LOG] [Telegram.WebView] > postEvent web_app_set_bottom_bar_color {color: #ffffff} @ https://telegram.org/js/telegram-web-app.js:134
+[     429ms] [LOG] [Telegram.WebView] > postEvent web_app_request_theme  @ https://telegram.org/js/telegram-web-app.js:134
+[     429ms] [LOG] [Telegram.WebView] > postEvent web_app_request_viewport  @ https://telegram.org/js/telegram-web-app.js:134
+[     429ms] [LOG] [Telegram.WebView] > postEvent web_app_request_safe_area  @ https://telegram.org/js/telegram-web-app.js:134
+[     429ms] [LOG] [Telegram.WebView] > postEvent web_app_request_content_safe_area  @ https://telegram.org/js/telegram-web-app.js:134
+[     463ms] [LOG] [Telegram.WebView] > postEvent web_app_ready  @ https://telegram.org/js/telegram-web-app.js:134
+[     463ms] [LOG] [Telegram.WebView] > postEvent web_app_expand  @ https://telegram.org/js/telegram-web-app.js:134
+[     463ms] [WARNING] [Telegram.WebApp] Header color is not supported in version 6.0 @ https://telegram.org/js/telegram-web-app.js:763
+[     464ms] [WARNING] [Telegram.WebApp] Background color is not supported in version 6.0 @ https://telegram.org/js/telegram-web-app.js:819
+[     464ms] [WARNING] [Telegram.WebApp] Changing swipes behavior is not supported in version 6.0 @ https://telegram.org/js/telegram-web-app.js:602
+[     490ms] [WARNING] [Telegram.WebApp] HapticFeedback is not supported in version 6.0 @ https://telegram.org/js/telegram-web-app.js:1472
+[   20988ms] [LOG] [Telegram.WebView] > postEvent web_app_set_header_color {color_key: bg_color} @ https://telegram.org/js/telegram-web-app.js:134
+[   20998ms] [LOG] [Telegram.WebView] > postEvent web_app_set_bottom_bar_color {color: #ffffff} @ https://telegram.org/js/telegram-web-app.js:134
+[   21004ms] [LOG] [Telegram.WebView] > postEvent web_app_request_theme  @ https://telegram.org/js/telegram-web-app.js:134
+[   21004ms] [LOG] [Telegram.WebView] > postEvent web_app_request_viewport  @ https://telegram.org/js/telegram-web-app.js:134
+[   21004ms] [LOG] [Telegram.WebView] > postEvent web_app_request_safe_area  @ https://telegram.org/js/telegram-web-app.js:134
+[   21004ms] [LOG] [Telegram.WebView] > postEvent web_app_request_content_safe_area  @ https://telegram.org/js/telegram-web-app.js:134
+[   21139ms] [LOG] [Telegram.WebView] > postEvent web_app_ready  @ https://telegram.org/js/telegram-web-app.js:134
+[   21139ms] [LOG] [Telegram.WebView] > postEvent web_app_expand  @ https://telegram.org/js/telegram-web-app.js:134
+[   21139ms] [WARNING] [Telegram.WebApp] Header color is not supported in version 6.0 @ https://telegram.org/js/telegram-web-app.js:763
+[   21139ms] [WARNING] [Telegram.WebApp] Background color is not supported in version 6.0 @ https://telegram.org/js/telegram-web-app.js:819
+[   21139ms] [WARNING] [Telegram.WebApp] Changing swipes behavior is not supported in version 6.0 @ https://telegram.org/js/telegram-web-app.js:602
+[   21187ms] [WARNING] [Telegram.WebApp] HapticFeedback is not supported in version 6.0 @ https://telegram.org/js/telegram-web-app.js:1472
+[   21296ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/img/fox_m2_b1_hungry.png:0

@@ -340,7 +340,7 @@ function fillSettings(d) {
   segSet('set-sex-seg', d.sex || 'm');
   $('set-activity').value = d.activity_level || 'moderate';
   segSet('set-goal-seg', d.goal || 'maintain');
-  $('set-interval').value = d.training_days_interval ?? '';
+  $('set-interval').value = d.training_days_interval ?? 3;   // новым — каждые 3 дня
   $('set-bodyfat').value = d.body_fat_pct ?? '';
   renderTargets(d);
   $('set-auto').checked = true;   // по умолчанию — автоподсчёт

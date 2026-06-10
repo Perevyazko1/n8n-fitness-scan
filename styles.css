@@ -330,14 +330,15 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .set-sec .seg { margin-bottom: 0; box-shadow: none; background: var(--surface-sunk); }
 .grid.grid-3 { grid-template-columns: 1fr 1fr 1fr; }
 .norm-grid { gap: 10px; }
-.norm { background: var(--surface-page); border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); padding: 10px 12px; }
-.norm-lab { font-size: 12px; color: var(--text-hint); }
+.norm { background: var(--surface-page); border: 1px solid var(--border-hairline); border-radius: var(--radius-input); padding: 10px 12px; }
+.norm-lab { font-size: 12px; color: var(--text-hint); margin-bottom: 2px; }
 .norm-row { display: flex; align-items: baseline; gap: 4px; }
-.norm-val { border: none; background: transparent; padding: 0; margin: 0; width: 62px; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-primary); font-family: var(--font-base); }
+.norm-val { border: none; background: transparent; padding: 0; margin: 0; width: 4ch; min-width: 0; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-primary); font-family: var(--font-base); appearance: textfield; -moz-appearance: textfield; }
+.norm-val::-webkit-outer-spin-button, .norm-val::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .norm-val:focus { outline: none; }
-.norm-val.accent { font-size: 22px; color: var(--accent); }
+.norm-val.accent { width: 5ch; font-size: 22px; color: var(--accent); }
 .norm-val:disabled { -webkit-text-fill-color: currentColor; opacity: 1; }
-.norm-unit { font-size: 11px; color: var(--text-hint); }
+.norm-unit { font-size: 11px; color: var(--text-hint); flex: 0 0 auto; }
 .auto-row { display: flex; align-items: center; gap: 10px; }
 .auto-row span { font-size: 15px; }
 

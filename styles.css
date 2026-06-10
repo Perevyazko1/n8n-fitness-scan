@@ -318,6 +318,29 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .onboard-hint { background: var(--accent-wash); color: var(--text-secondary); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px; font-size: var(--fs-small); line-height: 1.4; }
 .onboard-hint b { color: var(--accent); }
 
+/* ===================== Профиль (настройки) ===================== */
+.set-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.set-header h1 { font-size: 20px; font-weight: 700; }
+.set-profile { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.set-profile .medallion { width: 56px; height: 56px; box-shadow: 0 0 0 2.5px var(--accent), var(--shadow-card); }
+.set-profile-name { font-size: 17px; font-weight: 600; }
+.sec-head:first-child { margin-top: 0; }
+.set-sec { gap: 12px; }
+.set-sec label:not(.auto-row) { display: block; font-size: 12px; color: var(--text-hint); margin-bottom: 4px; }
+.set-sec .seg { margin-bottom: 0; box-shadow: none; background: var(--surface-sunk); }
+.grid.grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+.norm-grid { gap: 10px; }
+.norm { background: var(--surface-page); border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); padding: 10px 12px; }
+.norm-lab { font-size: 12px; color: var(--text-hint); }
+.norm-row { display: flex; align-items: baseline; gap: 4px; }
+.norm-val { border: none; background: transparent; padding: 0; margin: 0; width: 62px; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-primary); font-family: var(--font-base); }
+.norm-val:focus { outline: none; }
+.norm-val.accent { font-size: 22px; color: var(--accent); }
+.norm-val:disabled { -webkit-text-fill-color: currentColor; opacity: 1; }
+.norm-unit { font-size: 11px; color: var(--text-hint); }
+.auto-row { display: flex; align-items: center; gap: 10px; }
+.auto-row span { font-size: 15px; }
+
 /* ===================== Таб-бар ===================== */
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: flex; height: var(--tabbar-h); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--surface-page); border-top: 1px solid var(--border-hairline); }
 .tab { width: auto; flex: 1; margin: 0; padding: 6px 0; border-radius: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; color: var(--text-hint); }

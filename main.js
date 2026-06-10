@@ -297,12 +297,27 @@ function setMacro(key, m, unit) {
 }
 
 // === Настройки (профиль + КБЖУ) ===
+// Сегмент-контролы (Пол / Цель)
+function segValue(id) { return document.querySelector(`#${id} .seg-btn.active`)?.dataset.val; }
+function segSet(id, val) {
+  document.querySelectorAll(`#${id} .seg-btn`).forEach(b => b.classList.toggle('active', b.dataset.val === val));
+}
+
+// Зеркало backend recalc_targets — чтобы авто-показ нормы совпадал с сервером.
+const SET_ACT_BASELINE = { sedentary: 150, light: 250, moderate: 350, active: 500, very: 650 };
+const SET_GOAL_MULT = { lose: 0.8, maintain: 1.0, gain: 1.15 };
+
 async function openSettings() {
   showScreen('settings');
-  // в онбординге: прячем «закрыть», показываем подсказку, меняем текст кнопки
+  // в онбординге: прячем «назад», показываем подсказку, меняем текст кнопки
   $('set-close').style.display = onboarding ? 'none' : '';
   $('set-onboard-hint').classList.toggle('hidden', !onboarding);
-  $('set-save').textContent = onboarding ? 'Сохранить и начать' : 'Сохранить параметры';
+  $('set-save').textContent = onboarding ? 'Сохранить и начать' : 'Сохранить';
+  const u = tg?.initDataUnsafe?.user;
+  if (u) {
+    $('set-name').textContent = u.first_name || 'Профиль';
+    $('set-username').textContent = u.username ? `@${u.username} · Telegram` : 'Telegram';
+  }
   $('set-loading').classList.remove('hidden');
   $('set-content').classList.add('hidden');
   try {
@@ -322,36 +337,77 @@ function fillSettings(d) {
   $('set-height').value = d.height_cm ?? '';
   $('set-weight').value = d.weight_kg ?? '';
   $('set-age').value = d.age ?? '';
-  $('set-sex').value = d.sex || 'm';
+  segSet('set-sex-seg', d.sex || 'm');
   $('set-activity').value = d.activity_level || 'moderate';
-  $('set-goal').value = d.goal || 'maintain';
+  segSet('set-goal-seg', d.goal || 'maintain');
   $('set-interval').value = d.training_days_interval ?? '';
+  $('set-bodyfat').value = d.body_fat_pct ?? '';
   renderTargets(d);
+  $('set-auto').checked = true;   // по умолчанию — автоподсчёт
+  applyAutoState();
 }
 
 function renderTargets(d) {
-  $('set-kcal').textContent = (d.target_kcal != null ? d.target_kcal : '—') + ' ккал';
-  $('set-protein').textContent = d.target_protein_g != null ? `${d.target_protein_g} г` : '—';
-  $('set-fat').textContent = d.target_fat_g != null ? `${d.target_fat_g} г` : '—';
-  $('set-carbs').textContent = d.target_carbs_g != null ? `${d.target_carbs_g} г` : '—';
-  $('set-bmr').textContent = d.bmr != null
-    ? `BMR: ${d.bmr} ккал · фон: ${d.daily_baseline_kcal ?? '—'} ккал`
-    : '';
+  $('set-kcal').value = d.target_kcal ?? '';
+  $('set-protein').value = d.target_protein_g ?? '';
+  $('set-fat').value = d.target_fat_g ?? '';
+  $('set-carbs').value = d.target_carbs_g ?? '';
+}
+
+function calcNormsLocal() {
+  const sex = segValue('set-sex-seg') || 'm';
+  const h = Number($('set-height').value) || 0, w = Number($('set-weight').value) || 0, a = Number($('set-age').value) || 0;
+  const baseline = SET_ACT_BASELINE[$('set-activity').value] ?? 350;
+  const gmult = SET_GOAL_MULT[segValue('set-goal-seg')] ?? 1.0;
+  const bmr = Math.round(10 * w + 6.25 * h - 5 * a + (sex === 'm' ? 5 : -161));
+  const ref = Math.max(Math.round(bmr * 1.1), Math.round((bmr + baseline) * gmult));
+  const tp = Math.round(w * 1.8), tf = Math.round(w * 1.0);
+  const tc = Math.max(0, Math.round((ref - tp * 4 - tf * 9) / 4));
+  return { kcal: ref, protein: tp, fat: tf, carbs: tc };
+}
+
+function refreshNorms() {
+  if (!$('set-auto').checked) return;
+  const n = calcNormsLocal();
+  $('set-kcal').value = n.kcal; $('set-protein').value = n.protein;
+  $('set-fat').value = n.fat; $('set-carbs').value = n.carbs;
+}
+
+function applyAutoState() {
+  const auto = $('set-auto').checked;
+  ['set-kcal', 'set-protein', 'set-fat', 'set-carbs'].forEach(id => $(id).disabled = auto);
+  $('set-norm-hint').textContent = auto
+    ? 'Формула Миффлина — Сан-Жеора по твоим данным. Меняй параметры выше — пересчёт мгновенный.'
+    : 'Ручной режим — задай значения сам.';
+  if (auto) refreshNorms();
 }
 
 function settingsPayload() {
   return {
     height_cm: $('set-height').value, weight_kg: $('set-weight').value, age: $('set-age').value,
-    sex: $('set-sex').value, activity_level: $('set-activity').value, goal: $('set-goal').value,
+    sex: segValue('set-sex-seg') || 'm',
+    activity_level: $('set-activity').value,
+    goal: segValue('set-goal-seg') || 'maintain',
     training_days_interval: $('set-interval').value,
+    body_fat_pct: $('set-bodyfat').value,
   };
 }
 
 async function saveSettings() {
   if (onboarding) return onboardingSave();
+  const auto = $('set-auto').checked;
   try {
-    const res = await api('profile-save', settingsPayload());
+    const payload = settingsPayload();
+    if (!auto) Object.assign(payload, {
+      target_kcal: Number($('set-kcal').value) || 0,
+      target_protein_g: Number($('set-protein').value) || 0,
+      target_fat_g: Number($('set-fat').value) || 0,
+      target_carbs_g: Number($('set-carbs').value) || 0,
+    });
+    const res = await api('profile-save', payload);
     if (res.ok === false) throw new Error(res.error || 'fail');
+    if (auto) await api('profile-recalc');
+    fillSettings(await api('profile'));
     tg?.HapticFeedback?.notificationOccurred?.('success');
     showStatus('Сохранено ✓', false, 1500);
   } catch (e) {
@@ -370,21 +426,6 @@ async function onboardingSave() {
     tg?.HapticFeedback?.notificationOccurred?.('success');
     showStatus('Профиль готов ✓', false, 1200);
     endOnboarding();
-  } catch (e) {
-    showStatus('Не вышло: ' + e.message, true, 3000);
-  }
-}
-
-async function recalcSettings() {
-  // сначала сохраняем введённые параметры, потом считаем по свежим
-  try {
-    await api('profile-save', settingsPayload());
-    const r = await api('profile-recalc');
-    if (r.ok === false) throw new Error(r.error || 'fail');
-    const d = await api('profile');
-    fillSettings(d);
-    tg?.HapticFeedback?.notificationOccurred?.('success');
-    showStatus('КБЖУ пересчитаны ✓', false, 1800);
   } catch (e) {
     showStatus('Не вышло: ' + e.message, true, 3000);
   }
@@ -1711,7 +1752,12 @@ $('dash-settings').addEventListener('click', openSettings);
 $('card-workout').addEventListener('click', () => goTab('workout'));
 $('set-close').addEventListener('click', () => goTab('dashboard'));
 $('set-save').addEventListener('click', saveSettings);
-$('set-recalc').addEventListener('click', recalcSettings);
+// сегменты Пол/Цель + живой пересчёт нормы
+document.querySelectorAll('#set-sex-seg .seg-btn, #set-goal-seg .seg-btn').forEach(b =>
+  b.addEventListener('click', () => { segSet(b.parentElement.id, b.dataset.val); refreshNorms(); }));
+['set-height', 'set-weight', 'set-age', 'set-activity'].forEach(id =>
+  $(id).addEventListener('input', refreshNorms));
+$('set-auto').addEventListener('change', applyAutoState);
 $('reg-bot').addEventListener('click', () => tg?.close?.());
 $('wkt-prev').addEventListener('click', () => stepWktDay(-1));
 $('wkt-next').addEventListener('click', () => stepWktDay(1));

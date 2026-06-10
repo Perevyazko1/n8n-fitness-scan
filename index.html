@@ -9,7 +9,7 @@
 <title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=26" />
+<link rel="stylesheet" href="styles.css?v=27" />
 </head>
 <body>
 
@@ -394,12 +394,12 @@
   </div>
 </div>
 
-<!-- ===== Настройки (профиль + КБЖУ) ===== -->
+<!-- ===== Профиль (настройки) ===== -->
 <div id="settings" class="screen tab-screen">
   <div class="page">
-    <div class="page-head">
-      <div><h1>Настройки</h1></div>
-      <button id="set-close" class="icon-btn" aria-label="Закрыть"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5 L17.5 17.5 M17.5 6.5 L6.5 17.5"/></svg></button>
+    <div class="set-header">
+      <button id="set-close" class="icon-btn" aria-label="Назад"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6 L8.5 12 L14.5 18"/></svg></button>
+      <h1>Профиль</h1>
     </div>
     <div id="set-loading" class="loading">Загрузка…</div>
     <div id="set-content" class="hidden">
@@ -407,45 +407,60 @@
         <b>Заполни профиль, чтобы начать.</b> По нему Рыж посчитает дневную норму калорий и
         Б/Ж/У. Дальше откроются дневник, тренировки и ходьба.
       </div>
-      <div class="card stat">
-        <div class="stat-label" style="margin-bottom:6px;">Параметры тела</div>
-        <div class="grid">
-          <div><label>Рост, см</label><input id="set-height" type="number" min="0" step="1" /></div>
-          <div><label>Вес, кг</label><input id="set-weight" type="number" min="0" step="0.1" /></div>
-          <div><label>Возраст</label><input id="set-age" type="number" min="0" step="1" /></div>
-          <div><label>Пол</label>
-            <select id="set-sex"><option value="m">Муж</option><option value="f">Жен</option></select></div>
-        </div>
-        <label>Активность (образ жизни, без тренировок)</label>
-        <select id="set-activity">
-          <option value="sedentary">Сидячий образ</option>
-          <option value="light">Лёгкая</option>
-          <option value="moderate">Средняя</option>
-          <option value="active">Высокая</option>
-          <option value="very">Очень высокая</option>
-        </select>
-        <label>Цель</label>
-        <select id="set-goal">
-          <option value="lose">Похудение</option>
-          <option value="maintain">Поддержание</option>
-          <option value="gain">Набор массы</option>
-        </select>
-        <div class="grams-row"><label>Интервал тренировок, дн:</label>
-          <input id="set-interval" type="number" min="1" step="1" /></div>
-      </div>
-      <button id="set-save" class="primary">Сохранить параметры</button>
 
-      <div class="card stat">
-        <div class="stat-head"><span class="stat-label">Базовая цель / день</span>
-          <span id="set-kcal" class="stat-big">—</span></div>
-        <div class="macro"><span class="macro-name">Белок</span><span class="macro-val" id="set-protein">—</span></div>
-        <div class="macro"><span class="macro-name">Жиры</span><span class="macro-val" id="set-fat">—</span></div>
-        <div class="macro"><span class="macro-name">Углеводы</span><span class="macro-val" id="set-carbs">—</span></div>
-        <div class="muted small" id="set-bmr"></div>
+      <div class="set-profile">
+        <div class="medallion"><img src="img/fox_m3_b0.png" alt="Рыж" /></div>
+        <div><div class="set-profile-name" id="set-name">Профиль</div><div class="muted small" id="set-username"></div></div>
       </div>
-      <p class="muted small">Это цель на день БЕЗ активности (BMR + фон × цель). На дашборде сверху
-        добавляются твои ходьба и тренировки. Фон зависит от «Активности». КБЖУ — только пересчётом.</p>
-      <button id="set-recalc" class="secondary">Пересчитать КБЖУ</button>
+
+      <div class="sec-head">Параметры тела</div>
+      <div class="card stat set-sec">
+        <div>
+          <label>Пол</label>
+          <div class="seg" id="set-sex-seg">
+            <button class="seg-btn" data-val="m">Мужской</button>
+            <button class="seg-btn" data-val="f">Женский</button>
+          </div>
+        </div>
+        <div class="grid grid-3">
+          <div><label>Рост, см</label><input id="set-height" type="number" min="0" step="1" inputmode="numeric" /></div>
+          <div><label>Вес, кг</label><input id="set-weight" type="number" min="0" step="0.1" inputmode="decimal" /></div>
+          <div><label>Возраст</label><input id="set-age" type="number" min="0" step="1" inputmode="numeric" /></div>
+        </div>
+        <div><label>% жира · необязательно</label><input id="set-bodyfat" type="number" min="0" step="0.1" inputmode="decimal" placeholder="напр. 18" /></div>
+      </div>
+
+      <div class="sec-head">Цель</div>
+      <div class="card stat set-sec">
+        <div class="seg" id="set-goal-seg">
+          <button class="seg-btn" data-val="lose">Похудение</button>
+          <button class="seg-btn" data-val="maintain">Поддержание</button>
+          <button class="seg-btn" data-val="gain">Набор</button>
+        </div>
+        <div><label>Активность</label>
+          <select id="set-activity">
+            <option value="sedentary">Низкая — сидячий образ</option>
+            <option value="light">Лёгкая — редко</option>
+            <option value="moderate">Средняя — 1–3 трен/нед</option>
+            <option value="active">Высокая — 4–5 трен/нед</option>
+            <option value="very">Очень высокая — спорт</option>
+          </select></div>
+        <div><label>Интервал тренировок, дн</label><input id="set-interval" type="number" min="1" step="1" inputmode="numeric" /></div>
+      </div>
+
+      <div class="sec-head">Дневная норма</div>
+      <div class="card stat set-sec">
+        <label class="auto-row"><input id="set-auto" type="checkbox" class="switch" checked /><span>Считать автоматически</span></label>
+        <div class="grid norm-grid">
+          <div class="norm"><div class="norm-lab">Калории</div><div class="norm-row"><input id="set-kcal" class="norm-val accent" type="number" min="0" inputmode="numeric" disabled /><span class="norm-unit">ккал</span></div></div>
+          <div class="norm"><div class="norm-lab">Белки</div><div class="norm-row"><input id="set-protein" class="norm-val" type="number" min="0" inputmode="numeric" disabled /><span class="norm-unit">г</span></div></div>
+          <div class="norm"><div class="norm-lab">Жиры</div><div class="norm-row"><input id="set-fat" class="norm-val" type="number" min="0" inputmode="numeric" disabled /><span class="norm-unit">г</span></div></div>
+          <div class="norm"><div class="norm-lab">Углеводы</div><div class="norm-row"><input id="set-carbs" class="norm-val" type="number" min="0" inputmode="numeric" disabled /><span class="norm-unit">г</span></div></div>
+        </div>
+        <div class="muted small" id="set-norm-hint">Формула Миффлина — Сан-Жеора по твоим данным. Меняй параметры выше — пересчёт мгновенный.</div>
+      </div>
+
+      <button id="set-save" class="primary">Сохранить</button>
     </div>
   </div>
 </div>
@@ -471,6 +486,6 @@
   <button class="tab" data-tab="scanner"><span class="tab-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5 V6.4 A1.4 1.4 0 0 1 5.4 5 H7.6"/><path d="M20 8.5 V6.4 A1.4 1.4 0 0 0 18.6 5 H16.4"/><path d="M4 15.5 V17.6 A1.4 1.4 0 0 0 5.4 19 H7.6"/><path d="M20 15.5 V17.6 A1.4 1.4 0 0 1 18.6 19 H16.4"/><path d="M8.8 9 V15"/><path d="M12 9 V15"/><path d="M15.2 9 V15"/></svg></span>Сканер</button>
 </nav>
 
-<script src="main.js?v=26"></script>
+<script src="main.js?v=27"></script>
 </body>
 </html>

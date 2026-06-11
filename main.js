@@ -316,7 +316,9 @@ async function openSettings() {
   const u = tg?.initDataUnsafe?.user;
   if (u) {
     $('set-name').textContent = u.first_name || 'Профиль';
-    $('set-username').textContent = u.username ? `@${u.username} · Telegram` : 'Telegram';
+    const namePart = u.username ? `@${u.username}` : 'Telegram';
+    const idPart = u.id ? `ID ${u.id}` : '';
+    $('set-username').textContent = [namePart, idPart].filter(Boolean).join(' · ');
   }
   $('set-loading').classList.remove('hidden');
   $('set-content').classList.add('hidden');
@@ -635,8 +637,9 @@ function openExForm(ex) {
   $('exf-sets').value = ex?.sets || '';
   $('exf-reps').value = ex?.reps || '';
   $('exf-weight').value = ex?.weight || '';
-  $('exf-met').value = ex?.met ?? '';
-  $('exf-min').value = ex?.default_min ?? '';
+  // расход за упражнение: значение = ручной override (если задан), плейсхолдер = авто-оценка
+  $('exf-kcal').value = ex?.kcal_override ?? '';
+  $('exf-kcal').placeholder = (ex?.kcal_auto != null && ex.kcal_auto > 0) ? `авто ≈ ${ex.kcal_auto}` : 'авто';
   $('exf-note').value = ex?.note || '';
   showScreen('exform');
 }
@@ -644,9 +647,10 @@ function openExForm(ex) {
 async function exfSave() {
   const name = $('exf-name').value.trim();
   if (!name) { showStatus('Впиши название упражнения', true); return; }
-  const met = $('exf-met').value.trim();
-  const dmin = $('exf-min').value.trim();
+  const kcalRaw = $('exf-kcal').value.trim();
   try {
+    // MET и длительность не спрашиваем — бэк сам оценивает расход по категории/названию.
+    // kcal: пусто → null (авто), число → ручной расход за упражнение.
     const res = await api('exercise-save', {
       id: exEditing?.db_id,
       block_num: currentWorkout.block_num,
@@ -656,8 +660,7 @@ async function exfSave() {
       reps: $('exf-reps').value.trim(),
       weight: $('exf-weight').value.trim(),
       note: $('exf-note').value.trim(),
-      ...(met ? { met: Number(met) } : {}),        // пусто → бэк оценит по категории
-      ...(dmin ? { default_min: Number(dmin) } : {}),
+      kcal: kcalRaw === '' ? null : Number(kcalRaw),
     });
     if (res.ok === false) throw new Error(res.error || 'fail');
     tg?.HapticFeedback?.notificationOccurred?.('success');
@@ -737,6 +740,12 @@ async function exDelete(ex) {
 }
 
 async function completeWorkout(override) {
+  // Без ручного расхода и без единой галочки «выполнено» → насчитали бы 0 ккал.
+  // Не фиксируем молча: подсказываем отметить упражнения или вписать расход вручную.
+  if (typeof override !== 'number' && !currentExercises.some(e => e.done)) {
+    showStatus('Отметь выполненные упражнения галочкой — или впиши расход через «Расход вручную»', true, 3500);
+    return;
+  }
   const btn = $('wkt-complete');
   btn.disabled = true;
   try {
@@ -775,6 +784,8 @@ function exerciseSub(ex) {
   if (ex.sets && ex.reps) parts.push(`${ex.sets}×${ex.reps}`);
   else if (ex.reps) parts.push(ex.reps);
   if (ex.weight) parts.push(ex.weight);
+  // расход: «🔥 N ккал» — ручной без тильды, авто-оценка с «~»
+  if (ex.kcal > 0) parts.push(`🔥 ${ex.kcal_override != null ? '' : '~'}${ex.kcal} ккал`);
   if (ex.note) parts.push(ex.note);
   return parts.join(' · ');
 }

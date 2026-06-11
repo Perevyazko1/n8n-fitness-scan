@@ -34,7 +34,7 @@ const screens = {
   scanner: $('scanner'), card: $('card'), notfound: $('notfound'), manual: $('manual'),
   addproduct: $('addproduct'), pickproduct: $('pickproduct'), logfood: $('logfood'), exform: $('exform'),
   prodform: $('prodform'), manualfood: $('manualfood'),
-  blockform: $('blockform'), burnform: $('burnform'),
+  blockform: $('blockform'),
   settings: $('settings'), reggate: $('reggate'),
 };
 
@@ -449,7 +449,6 @@ async function loadWorkout(forcedBlock) {
   $('wkt-rest').classList.add('hidden');
   $('wkt-list').classList.add('hidden');
   $('wkt-complete').classList.add('hidden');
-  $('wkt-burn').classList.add('hidden');
   $('wkt-uncomplete').classList.add('hidden');
   $('wkt-addex').classList.add('hidden');
   $('wkt-editblock').classList.add('hidden');
@@ -523,7 +522,6 @@ function renderWorkout(d) {
     $('wkt-sub').textContent = '';
     $('wkt-list').classList.add('hidden');
     $('wkt-complete').classList.add('hidden');
-    $('wkt-burn').classList.add('hidden');
     $('wkt-uncomplete').classList.add('hidden');
     $('wkt-addex').classList.add('hidden');
     $('wkt-edit').classList.add('hidden');
@@ -566,27 +564,23 @@ function renderWorkout(d) {
   $('wkt-editblock').classList.toggle('hidden', !wktEdit);   // переименовать/удалить текущий блок
   $('wkt-newblock').classList.toggle('hidden', !wktEdit);    // создать новый блок
 
-  // Кнопки завершения. В режиме редактирования обе прячем.
+  // Кнопки завершения. В режиме редактирования прячем.
   const complete = $('wkt-complete');
   const uncomplete = $('wkt-uncomplete');
-  const burn = $('wkt-burn');
   if (wktEdit) {
     complete.classList.add('hidden');
-    burn.classList.add('hidden');
     uncomplete.classList.add('hidden');
   } else if (d.logged) {
     // тренировка уже подтверждена → кнопку деактивируем, показываем «отменить»
     complete.textContent = 'Тренировка завершена ✓';
     complete.disabled = true;
     complete.classList.remove('hidden');
-    burn.classList.add('hidden');
     uncomplete.classList.remove('hidden');
   } else {
     complete.textContent = currentEstKcal > 0
       ? `Завершить · ~${currentEstKcal} ккал` : 'Завершить тренировку';
     complete.disabled = false;
     complete.classList.remove('hidden');
-    burn.classList.remove('hidden');     // «Расход вручную»
     uncomplete.classList.add('hidden');
   }
 }
@@ -713,19 +707,6 @@ async function blockDelete() {
   }
 }
 
-// --- Ручной ввод расхода ---
-function openBurnForm() {
-  $('bn-kcal').value = currentEstKcal || '';
-  showScreen('burnform');
-}
-
-async function burnSave() {
-  const v = Number($('bn-kcal').value);
-  if (!(v >= 0)) { showStatus('Впиши ккал', true); return; }
-  showScreen('workout');
-  completeWorkout(v);
-}
-
 async function exDelete(ex) {
   const okc = await confirmDialog(`Удалить «${ex.exercise}» из плана?`);
   if (!okc) return;
@@ -739,18 +720,17 @@ async function exDelete(ex) {
   }
 }
 
-async function completeWorkout(override) {
-  // Без ручного расхода и без единой галочки «выполнено» → насчитали бы 0 ккал.
-  // Не фиксируем молча: подсказываем отметить упражнения или вписать расход вручную.
-  if (typeof override !== 'number' && !currentExercises.some(e => e.done)) {
-    showStatus('Отметь выполненные упражнения галочкой — или впиши расход через «Расход вручную»', true, 3500);
+async function completeWorkout() {
+  // Без единой галочки «выполнено» расход насчитался бы 0 ккал — не фиксируем молча,
+  // а подсказываем отметить упражнения (или задать ккал в самом упражнении).
+  if (!currentExercises.some(e => e.done)) {
+    showStatus('Отметь выполненные упражнения галочкой', true, 3500);
     return;
   }
   const btn = $('wkt-complete');
   btn.disabled = true;
   try {
     const payload = { date: currentWorkout.date, block: currentWorkout.block_num };
-    if (typeof override === 'number') payload.kcal_burned = override;   // ручной приоритет
     const res = await api('complete-workout', payload);
     if (res.ok === false) throw new Error(res.error || 'fail');
     tg?.HapticFeedback?.notificationOccurred?.('success');
@@ -1775,7 +1755,6 @@ $('reg-bot').addEventListener('click', () => tg?.close?.());
 $('wkt-prev').addEventListener('click', () => stepWktDay(-1));
 $('wkt-next').addEventListener('click', () => stepWktDay(1));
 $('wkt-complete').addEventListener('click', () => completeWorkout());
-$('wkt-burn').addEventListener('click', openBurnForm);
 $('wkt-editblock').addEventListener('click', () => openBlockForm(currentWorkout?.block_num, currentWorkout?.label || ''));
 $('wkt-newblock').addEventListener('click', () => openBlockForm(null, ''));
 $('wkt-uncomplete').addEventListener('click', uncompleteWorkout);
@@ -1786,8 +1765,6 @@ $('exf-cancel').addEventListener('click', () => showScreen('workout'));
 $('bf-save').addEventListener('click', blockSave);
 $('bf-delete').addEventListener('click', blockDelete);
 $('bf-cancel').addEventListener('click', () => showScreen('workout'));
-$('bn-save').addEventListener('click', burnSave);
-$('bn-cancel').addEventListener('click', () => showScreen('workout'));
 document.querySelectorAll('[data-wmode]').forEach(b =>
   b.addEventListener('click', () => setWktMode(b.dataset.wmode)));
 $('walk-save').addEventListener('click', walkSave);

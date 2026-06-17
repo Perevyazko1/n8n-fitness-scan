@@ -244,12 +244,25 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .chip { width: auto; flex: 0 0 auto; margin: 0; padding: 8px 14px; border-radius: var(--radius-pill); font-size: 14px; background: var(--surface-card); box-shadow: var(--shadow-card); color: var(--text-primary); }
 .chip.active { background: var(--accent); color: var(--accent-text); box-shadow: none; }
 
+/* ===================== Прогресс блока ===================== */
+.wkt-prog { gap: 12px; margin-bottom: 14px; padding: 16px; }
+.wkt-prog-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.wkt-prog-label { font-size: 17px; font-weight: 700; }
+.wkt-prog-count { flex: 0 0 auto; font-size: 18px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+
 /* ===================== Упражнения ===================== */
 .sec-head { font-size: var(--fs-small); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-hint); margin: 16px 2px 8px; }
-.ex { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 16px; background: var(--surface-card); border-radius: var(--radius); box-shadow: var(--shadow-card); margin-bottom: 10px; cursor: pointer; }
-.ex-main { min-width: 0; }
+.ex { display: flex; align-items: center; gap: 14px; padding: 13px 16px; background: var(--surface-card); border-radius: var(--radius); box-shadow: var(--shadow-card); margin-bottom: 10px; cursor: pointer; }
+.ex-main { min-width: 0; flex: 1 1 auto; }
 .ex-name { font-size: 16px; font-weight: 600; transition: opacity 0.2s; }
 .ex.is-done .ex-name { text-decoration: line-through; opacity: 0.5; }
+
+/* кружок-галочка слева (пустой контур → залит зелёным при done) */
+.ex-check { flex: 0 0 30px; width: 30px; height: 30px; padding: 0; margin: 0; border-radius: 50%; border: 2px solid var(--border-input); background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s var(--ease-out), border-color 0.2s var(--ease-out); }
+.ex-check svg { width: 17px; height: 17px; opacity: 0; transform: scale(0.6); transition: opacity 0.2s var(--ease-out), transform 0.2s var(--ease-out); }
+.ex.is-done .ex-check { background: var(--success); border-color: var(--success); }
+.ex.is-done .ex-check svg { opacity: 1; transform: scale(1); }
+.ex-check:disabled { cursor: default; }
 
 /* iOS-тоггл поверх чекбокса */
 .switch { appearance: none; -webkit-appearance: none; flex: 0 0 auto; width: 50px; height: 30px; border-radius: var(--radius-pill); background: var(--warm-400); position: relative; cursor: pointer; transition: background 0.2s var(--ease-out); margin: 0; padding: 0; border: none; }

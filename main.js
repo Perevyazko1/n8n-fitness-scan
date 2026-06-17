@@ -446,6 +446,7 @@ async function loadWorkout(forcedBlock) {
   $('wkt-loading').classList.remove('hidden');
   $('wkt-error').classList.add('hidden');
   $('wkt-blocks').classList.add('hidden');
+  $('wkt-progress').classList.add('hidden');
   $('wkt-rest').classList.add('hidden');
   $('wkt-list').classList.add('hidden');
   $('wkt-complete').classList.add('hidden');
@@ -537,10 +538,10 @@ function renderWorkout(d) {
   $('wkt-rest').classList.add('hidden');
   currentEstKcal = Math.round(d.est_kcal || 0);
   const exs = currentExercises;
-  const doneCount = exs.filter(e => e.done).length;
-  $('wkt-sub').textContent = wktEdit
-    ? `${d.label} · редактирование плана`
-    : `${d.label} · выполнено ${doneCount} из ${exs.length}`;
+  $('wkt-sub').textContent = wktEdit ? 'редактирование плана' : '';
+  // карточка прогресса блока (метка · N/M · бар · осталось) — только в режиме просмотра
+  if (wktEdit) $('wkt-progress').classList.add('hidden');
+  else renderWktProgress(d.label, exs);
 
   const list = $('wkt-list');
   list.innerHTML = '';
@@ -770,9 +771,41 @@ function exerciseSub(ex) {
   return parts.join(' · ');
 }
 
+// Склонение «упражнение / упражнения / упражнений».
+function pluralEx(n) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return 'упражнений';
+  if (b > 1 && b < 5) return 'упражнения';
+  if (b === 1) return 'упражнение';
+  return 'упражнений';
+}
+
+// Карточка прогресса блока: метка · N/M · бар · «осталось N упражнений».
+function renderWktProgress(label, exs) {
+  const done = exs.filter(e => e.done).length;
+  const total = exs.length;
+  const left = total - done;
+  $('wkt-prog-label').textContent = label || '';
+  $('wkt-prog-count').textContent = `${done}/${total}`;
+  $('wkt-prog-bar').style.width = (total ? Math.round(done / total * 100) : 0) + '%';
+  const parts = [];
+  if (currentEstKcal > 0) parts.push(`~${currentEstKcal} ккал`);
+  parts.push(left > 0 ? `осталось ${left} ${pluralEx(left)}` : 'всё выполнено');
+  $('wkt-prog-sub').textContent = parts.join(' · ');
+  $('wkt-progress').classList.remove('hidden');
+}
+
 function buildExerciseRow(ex) {
-  const row = document.createElement('label');
+  const row = document.createElement('div');
   row.className = 'ex' + (ex.done ? ' is-done' : '');
+
+  const check = document.createElement('button');
+  check.type = 'button';
+  check.className = 'ex-check';
+  check.setAttribute('role', 'checkbox');
+  check.setAttribute('aria-checked', String(!!ex.done));
+  check.setAttribute('aria-label', ex.exercise);
+  check.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 l4.2 4.2 L19 6.8"/></svg>';
 
   const main = document.createElement('div');
   main.className = 'ex-main';
@@ -785,20 +818,19 @@ function buildExerciseRow(ex) {
   main.appendChild(name);
   main.appendChild(sub);
 
-  const sw = document.createElement('input');
-  sw.type = 'checkbox';
-  sw.className = 'switch';
-  sw.checked = !!ex.done;
-  sw.addEventListener('change', () => toggleExercise(ex, sw, row));
-
+  row.appendChild(check);
   row.appendChild(main);
-  row.appendChild(sw);
+  // тап по всей строке (или по кружку) переключает галочку
+  row.addEventListener('click', () => toggleExercise(ex, check, row));
   return row;
 }
 
-async function toggleExercise(ex, sw, row) {
-  const newDone = sw.checked;
-  sw.disabled = true;
+async function toggleExercise(ex, check, row) {
+  const newDone = !ex.done;
+  // оптимистично: красим сразу, откат при ошибке
+  row.classList.toggle('is-done', newDone);
+  check.setAttribute('aria-checked', String(newDone));
+  check.disabled = true;
   try {
     const res = await api('toggle-exercise', {
       date: currentWorkout.date,
@@ -808,23 +840,28 @@ async function toggleExercise(ex, sw, row) {
     });
     if (res.ok === false) throw new Error(res.error || 'fail');
     ex.done = newDone;
-    row.classList.toggle('is-done', newDone);
     tg?.HapticFeedback?.impactOccurred?.('light');
     bumpWorkoutCount();
   } catch (e) {
-    sw.checked = !newDone;              // откат
+    row.classList.toggle('is-done', !newDone);   // откат
+    check.setAttribute('aria-checked', String(!newDone));
     showStatus('Не сохранилось: ' + e.message, true, 3000);
   } finally {
-    sw.disabled = false;
+    check.disabled = false;
   }
 }
 
-// Пересчитать «выполнено N из M» в подзаголовке без перезапроса.
+// Пересчитать N/M и бар в карточке прогресса без перезапроса.
 function bumpWorkoutCount() {
   const total = document.querySelectorAll('#wkt-list .ex').length;
   const done = document.querySelectorAll('#wkt-list .ex.is-done').length;
-  const sub = $('wkt-sub').textContent.split(' · ')[0];
-  $('wkt-sub').textContent = `${sub} · выполнено ${done} из ${total}`;
+  const left = total - done;
+  $('wkt-prog-count').textContent = `${done}/${total}`;
+  $('wkt-prog-bar').style.width = (total ? Math.round(done / total * 100) : 0) + '%';
+  const parts = [];
+  if (currentEstKcal > 0) parts.push(`~${currentEstKcal} ккал`);
+  parts.push(left > 0 ? `осталось ${left} ${pluralEx(left)}` : 'всё выполнено');
+  $('wkt-prog-sub').textContent = parts.join(' · ');
 }
 
 // === Ходьба (раздел в трен-вкладке) ===

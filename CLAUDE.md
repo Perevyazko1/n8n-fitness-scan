@@ -47,6 +47,20 @@ JSON. Это специально: при будущем переезде Sheets
 
 ### Контракты (целевые)
 
+`POST /api/product-search` → поиск продуктов по названию (прокси к Open Food Facts):
+```json
+// запрос: { initData, q:"творог" }
+// ответ:  { "ok":true, "items":[
+//   { "name":"Творог 5%", "brand":"Простоквашино", "barcode":"460...",
+//     "kcal_per_100g":121, "protein_per_100g":17, "fat_per_100g":5,
+//     "carbs_per_100g":3, "default_serving_g":100 } ] }
+```
+Зачем серверный прокси: из браузера OFF бьётся о CORS и частые 503 у `cgi/search.pl`.
+Бэк ходит в OFF сам (можно слать User-Agent → меньше троттлинга): сначала быстрый индекс
+`search.openfoodfacts.org`, фолбэк — классический `cgi/search.pl`. Форма items 1:1 с `/products`,
+поэтому фронт переиспользует экран грамовки (`openLogFood`). Используется в «Записать вручную»:
+поиск → выбор → грамовка, либо «не нашёл» → ручной ввод КБЖУ.
+
 `POST /webhook/dashboard` → состояние на сегодня:
 ```json
 { "date":"2026-06-04",
@@ -242,7 +256,7 @@ JSON. Это специально: при будущем переезде Sheets
 - **Контракты вебхуков из этого файла — это и есть будущий API Django.** Держать их
   стабильными: фронт (Mini App) при переезде НЕ меняется, переписывается только бэк.
   Пути: `dashboard`, `food-log`, `workout-today`, `toggle-exercise`, `delete-food`,
-  `repeat-food`, `scan-barcode` (+ будущий `log-workout-burn` для Apple Watch).
+  `repeat-food`, `scan-barcode`, `product-search` (+ будущий `log-workout-burn` для Apple Watch).
 - **Сущности БД** (из листов Sheets): `profile`, `food_log`, `workout_log`, `workouts_flat`,
   `workout_blocks`, `workout_done`, `walking_log`, `products`, `body_params`. Сейчас всё
   single-user (без `chat_id` в строках) — при переезде заложить `user` сразу, на будущее.

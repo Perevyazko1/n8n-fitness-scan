@@ -1050,7 +1050,7 @@ async function mfSearch(q) {
     renderMfResults(items, q);
   } catch (e) {
     if (seq !== _mfSeq) return;
-    box.innerHTML = '<div class="muted small">Не вышло найти. Впиши КБЖУ вручную ниже.</div>';
+    box.innerHTML = '<div class="muted small">Не вышло выполнить поиск. Попробуй ещё раз — или впиши КБЖУ вручную ниже.</div>';
     revealMfManual(q);
   }
 }
@@ -1637,37 +1637,13 @@ async function fetchOFF(barcode) {
   return await r.json();
 }
 
-// Текстовый поиск по названию в OFF → нормализованные продукты (на 100г).
-// Эндпоинт cgi/search.pl на world.openfoodfacts.org — единственный, что даёт и
-// настоящий полнотекстовый поиск, и CORS (access-control-allow-origin: *), как у
-// barcode-запроса. (search.openfoodfacts.org быстрее, но без CORS — из браузера нельзя.)
-// Отбрасываем записи без ккал/названия — их не залогировать.
+// Поиск продуктов по названию. Идём в наш бэк (эндпоинт product-search), который
+// сам ходит в Open Food Facts server-side и возвращает уже нормализованный список
+// (на 100г). Так фронт не упирается в CORS и 503-капризы OFF.
 async function searchOFF(q) {
-  const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}`
-    + `&search_simple=1&action=process&json=1&page_size=24&sort_by=unique_scans_n`
-    + `&fields=code,product_name,brands,nutriments,serving_quantity`;
-  const r = await fetch(url);
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  const data = await r.json();
-  const out = [];
-  for (const p of (data.products || [])) {
-    const n = p.nutriments || {};
-    const k = n['energy-kcal_100g'];
-    const name = String(p.product_name || '').trim();
-    if (k == null || !name) continue;
-    const brand = Array.isArray(p.brands) ? (p.brands[0] || '') : String(p.brands || '').split(',')[0];
-    out.push({
-      name,
-      brand: String(brand).trim(),
-      barcode: p.code || '',
-      kcal_per_100g: round(k),
-      protein_per_100g: round(n['proteins_100g']),
-      fat_per_100g: round(n['fat_100g']),
-      carbs_per_100g: round(n['carbohydrates_100g']),
-      default_serving_g: Math.round(Number(p.serving_quantity) || 100),
-    });
-  }
-  return out;
+  const d = await api('product-search', { q });
+  if (d.ok === false) throw new Error(d.error || 'fail');
+  return d.items || [];
 }
 
 // === Главный поток ===

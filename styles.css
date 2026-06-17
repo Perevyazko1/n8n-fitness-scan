@@ -112,6 +112,13 @@ html, body {
 .torch-btn.on { background: var(--accent); border-color: var(--accent); }
 .manual-btn { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabbar-h) + 20px); z-index: 50; color: #fff; background: rgba(0,0,0,0.55); padding: 12px 22px; border: 1px solid rgba(255,255,255,0.5); border-radius: var(--radius-pill); font-size: 15px; width: auto; margin-top: 0; }
 
+/* экран добавления еды: поиск (OFF) + ручной ввод */
+#manualfood.active { display: block; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.mf-wrap { padding: 16px 16px calc(var(--tabbar-h) + 16px); max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.mf-results { display: flex; flex-direction: column; gap: 8px; }
+.mf-results:empty { display: none; }
+.mf-results .food { margin-bottom: 0; }
+
 /* ===================== Модальные карточки ===================== */
 .card { background: var(--surface-card); border-radius: var(--radius); box-shadow: var(--shadow-card); padding: 20px; display: flex; flex-direction: column; gap: 10px; }
 .card h2 { font-size: 20px; font-weight: 700; }

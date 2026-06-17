@@ -1023,11 +1023,65 @@ async function prodSave() {
   }
 }
 
-// --- Свободная запись еды в дневник (без продукта) ---
+// --- Добавить еду: сперва поиск в базе (OFF), ручной ввод — fallback ---
 function openManualFood() {
   ['mf-desc', 'mf-kcal', 'mf-protein', 'mf-fat', 'mf-carbs'].forEach(id => $(id).value = '');
   $('mf-meal').value = '';
+  $('mf-search').value = '';
+  $('mf-results').innerHTML = '';
+  $('mf-manual').classList.add('hidden');
+  $('mf-manual-toggle').classList.remove('hidden');
+  pendingMeal = null;
   showScreen('manualfood');
+  setTimeout(() => $('mf-search').focus(), 100);
+}
+
+// Поиск по названию в Open Food Facts (то же API, что и для штрихкодов).
+let _mfSeq = 0, _mfDebounce = null;
+async function mfSearch(q) {
+  q = (q || '').trim();
+  const box = $('mf-results');
+  if (q.length < 2) { box.innerHTML = ''; return; }
+  const seq = ++_mfSeq;
+  box.innerHTML = '<div class="loading">Ищу…</div>';
+  try {
+    const items = await searchOFF(q);
+    if (seq !== _mfSeq) return;            // пришёл ответ устаревшего запроса
+    renderMfResults(items, q);
+  } catch (e) {
+    if (seq !== _mfSeq) return;
+    box.innerHTML = '<div class="muted small">Не вышло найти. Впиши КБЖУ вручную ниже.</div>';
+    revealMfManual(q);
+  }
+}
+
+function renderMfResults(items, q) {
+  const box = $('mf-results');
+  box.innerHTML = '';
+  if (!items.length) {
+    box.innerHTML = '<div class="muted small">Ничего не нашлось — впиши КБЖУ вручную ниже.</div>';
+    revealMfManual(q);
+    return;
+  }
+  for (const p of items.slice(0, 12)) {
+    const row = document.createElement('div');
+    row.className = 'food pick';
+    const main = document.createElement('div'); main.className = 'food-main';
+    const nm = document.createElement('div'); nm.className = 'food-desc'; nm.textContent = p.name;
+    const sub = document.createElement('div'); sub.className = 'muted small';
+    sub.textContent = `${p.kcal_per_100g} ккал/100г${p.brand ? ' · ' + p.brand : ''}`;
+    main.appendChild(nm); main.appendChild(sub);
+    row.appendChild(main);
+    row.addEventListener('click', () => openLogFood(p, 'manualfood'));
+    box.appendChild(row);
+  }
+}
+
+// Открыть ручной ввод КБЖУ (опц. подставить название из поиска).
+function revealMfManual(prefillName) {
+  $('mf-manual').classList.remove('hidden');
+  $('mf-manual-toggle').classList.add('hidden');
+  if (prefillName && !$('mf-desc').value) $('mf-desc').value = prefillName;
 }
 
 async function manualFoodSave() {
@@ -1149,7 +1203,9 @@ function renderPickList(q) {
   }
 }
 
-function openLogFood(p) {
+let lfReturn = 'pickproduct';   // куда вернуться по «Назад» из грамовки
+function openLogFood(p, ret) {
+  lfReturn = ret || 'pickproduct';
   lfProduct = p;
   $('lf-name').textContent = p.name;
   $('lf-per100').textContent =
@@ -1581,6 +1637,39 @@ async function fetchOFF(barcode) {
   return await r.json();
 }
 
+// Текстовый поиск по названию в OFF → нормализованные продукты (на 100г).
+// Эндпоинт cgi/search.pl на world.openfoodfacts.org — единственный, что даёт и
+// настоящий полнотекстовый поиск, и CORS (access-control-allow-origin: *), как у
+// barcode-запроса. (search.openfoodfacts.org быстрее, но без CORS — из браузера нельзя.)
+// Отбрасываем записи без ккал/названия — их не залогировать.
+async function searchOFF(q) {
+  const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}`
+    + `&search_simple=1&action=process&json=1&page_size=24&sort_by=unique_scans_n`
+    + `&fields=code,product_name,brands,nutriments,serving_quantity`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const data = await r.json();
+  const out = [];
+  for (const p of (data.products || [])) {
+    const n = p.nutriments || {};
+    const k = n['energy-kcal_100g'];
+    const name = String(p.product_name || '').trim();
+    if (k == null || !name) continue;
+    const brand = Array.isArray(p.brands) ? (p.brands[0] || '') : String(p.brands || '').split(',')[0];
+    out.push({
+      name,
+      brand: String(brand).trim(),
+      barcode: p.code || '',
+      kcal_per_100g: round(k),
+      protein_per_100g: round(n['proteins_100g']),
+      fat_per_100g: round(n['fat_100g']),
+      carbs_per_100g: round(n['carbohydrates_100g']),
+      default_serving_g: Math.round(Number(p.serving_quantity) || 100),
+    });
+  }
+  return out;
+}
+
 // === Главный поток ===
 async function handleBarcode(barcode) {
   currentBarcode = barcode;
@@ -1819,11 +1908,17 @@ $('pf-save').addEventListener('click', prodSave);
 $('pf-cancel').addEventListener('click', () => showScreen('foodlog'));
 $('mf-save').addEventListener('click', manualFoodSave);
 $('mf-cancel').addEventListener('click', () => showScreen('foodlog'));
+$('mf-manual-toggle').addEventListener('click', () => revealMfManual());
+$('mf-search').addEventListener('input', (e) => {
+  clearTimeout(_mfDebounce);
+  const v = e.target.value;
+  _mfDebounce = setTimeout(() => mfSearch(v), 350);
+});
 $('pp-close').addEventListener('click', () => goTab('foodlog'));
 $('pp-search').addEventListener('input', (e) => renderPickList(e.target.value));
 $('lf-grams').addEventListener('input', lfUpdatePreview);
 $('lf-add').addEventListener('click', lfAdd);
-$('lf-cancel').addEventListener('click', () => showScreen('pickproduct'));
+$('lf-cancel').addEventListener('click', () => showScreen(lfReturn));
 
 // === Старт: профиль не заполнен → онбординг на Настройках, иначе Главная ===
 window.addEventListener('load', boot);

@@ -250,6 +250,8 @@ function renderDashboard(d) {
       ? `img/fox_m${m}_b${b}_hungry.png`
       : `img/fox_m${m}_b${b}.png`;
   }
+  // тинт рамки по состоянию: голодный — «холодная», бодрый — тёплая оранжевая
+  $('fox-medallion')?.classList.toggle('is-hungry', mood === 'hungry');
 
   // --- Голос Рыжа ---
   $('ryzh-says').innerHTML = `<b>Рыж:</b> ${ryzhVoice(d)}`;

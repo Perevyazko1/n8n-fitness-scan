@@ -88,6 +88,9 @@ html, body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* убираем double-tap-to-zoom при частых тапах (скролл и pinch остаются) */
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
 }
 
 /* ---- Текст-утилиты ---- */

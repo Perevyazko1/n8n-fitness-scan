@@ -124,6 +124,9 @@ html, body {
 .muted { color: var(--text-hint); }
 .small { font-size: var(--fs-small); }
 .tnum  { font-variant-numeric: tabular-nums; }
+/* линейная иконка в строке текста (вместо эмодзи) */
+.inline-ico { display: inline-flex; vertical-align: -2px; }
+.inline-ico.streak { color: var(--streak); }
 
 .screen { display: none; height: 100%; }
 .screen.active { display: flex; flex-direction: column; }
@@ -231,42 +234,54 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .macro-name { font-size: var(--fs-small); color: var(--text-hint); }
 .macro-val { font-size: var(--fs-small); font-variant-numeric: tabular-nums; }
 
-/* ===================== Маскот + голос Рыжа ===================== */
-.fox-wrap { display: flex; flex-direction: column; align-items: center; margin-bottom: 2px; }
-.medallion { width: 132px; height: 132px; border-radius: 50%; overflow: hidden; background: radial-gradient(circle at 50% 34%, var(--medallion-1) 0%, var(--medallion-2) 72%); box-shadow: 0 0 0 3px var(--accent), var(--shadow-raised); }
-.medallion img { width: 128%; height: 128%; object-fit: cover; object-position: 50% 16%; margin: -6% 0 0 -14%; display: block; }
+/* ===================== Маскот: тёмный медальон ===================== */
+/* Арт лиса с тёмным фоном — всегда в круглом медальоне с оранжевым кольцом
+   (--ring задаётся по статусу; по умолчанию — акцент). */
+.medallion { width: 132px; height: 132px; border-radius: 50%; overflow: hidden; background: radial-gradient(circle at 50% 34%, var(--medallion-1) 0%, var(--medallion-2) 72%); box-shadow: 0 0 0 3px var(--ring, var(--accent)), var(--shadow-raised); transition: box-shadow 0.2s var(--ease-out); }
+.medallion img { width: 128%; height: 128%; object-fit: cover; object-position: 50% 16%; margin: -6% 0 0 -14%; display: block; transition: filter 0.2s var(--ease-out); }
 .medallion.sm { width: 96px; height: 96px; }
-/* На главной — лисёнок в скруглённом квадрате (это персонаж-тренер/тамагочи, а не аватарка).
-   Арт квадратный 1:1, поэтому показываем фигурку целиком, без круг-зума. */
-.fox-wrap .medallion { width: 150px; height: 150px; border-radius: 30px; }
-.fox-wrap .medallion img { width: 100%; height: 100%; object-position: 50% 50%; margin: 0; }
 
-/* «Сцена»: персонаж + тень-подставка под ним (будто стоит, а не висит). */
-.fox-stage { position: relative; display: inline-flex; }
-.fox-stage::after {
-  content: ''; position: absolute; left: 50%; bottom: -9px; width: 108px; height: 15px;
-  transform: translateX(-50%);
-  background: radial-gradient(50% 50% at 50% 50%, rgba(90,60,30,0.20), rgba(90,60,30,0) 72%);
-  border-radius: 50%; z-index: 0;
-  animation: ryzh-shadow 4s ease-in-out infinite;
-}
-/* Лёгкое «дыхание» — медленный подъём/опускание (тамагочи живой). */
-.fox-stage .medallion { position: relative; z-index: 1; animation: ryzh-breathe 4s ease-in-out infinite; }
-@keyframes ryzh-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-@keyframes ryzh-shadow {
-  0%, 100% { transform: translateX(-50%) scaleX(1); opacity: 1; }
-  50%      { transform: translateX(-50%) scaleX(0.86); opacity: 0.65; }
-}
+/* ===================== Геро-блок дашборда: облако + лис ===================== */
+.ryzh-hero { position: relative; width: 100%; height: 228px; margin-bottom: 12px; }
+/* комикс-облако сверху: нижний край закреплён над лисом, растёт вверх по тапу */
+.hero-bubble { position: absolute; bottom: 158px; left: 10px; right: 10px; z-index: 5; cursor: pointer; width: auto; margin: 0; padding: 9px 14px; text-align: center; background: #fff; border: 2px solid var(--ink); border-radius: 24px; box-shadow: 2px 3px 0 rgba(42,38,32,0.12); }
+.hero-bubble-text { font-size: var(--fs-small); line-height: 1.4; color: var(--ink); max-height: 56px; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.hero-bubble.open .hero-bubble-text { max-height: 184px; overflow-y: auto; display: block; -webkit-line-clamp: unset; }
+.hero-bubble-text b { color: var(--accent); }
+/* облако всегда на белом фоне (комикс), даже в тёмной теме — текст тёмный */
+.hero-tail { position: absolute; left: 40%; bottom: -52px; pointer-events: none; }
+/* скрытый скроллбар в развёрнутом облаке */
+.mini-scroll { scrollbar-width: none; }
+.mini-scroll::-webkit-scrollbar { width: 0; height: 0; }
+/* крупный лис снизу по центру, живое «дыхание» */
+.hero-fox { position: absolute; bottom: 0; left: 50%; margin-left: -75px; width: 150px; animation: ryzh-breathe 3.6s ease-in-out infinite; transform-origin: bottom center; }
+.hero-fox .medallion { width: 150px; height: 150px; }
+@keyframes ryzh-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+/* статусы лиса: цвет кольца медальона + тинт арта */
+.hero-fox.s-risk { --ring: var(--frost); }
+.hero-fox.s-win  { --ring: var(--success); }
+.hero-fox.s-lost { --ring: var(--warm-400); }
+.hero-fox.s-risk .medallion img { filter: saturate(0.85); }
+.hero-fox.s-lost .medallion img { filter: grayscale(0.45) saturate(0.7); }
+/* бейдж статуса на медальоне (снежинка / кубок) */
+.hero-badge { position: absolute; right: -2px; top: 2px; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; border: 2.5px solid var(--surface-page); box-shadow: 0 2px 8px rgba(80,50,20,0.25); }
+.hero-badge.risk { background: var(--frost); }
+.hero-badge.win  { background: var(--success); }
+@media (prefers-reduced-motion: reduce) { .hero-fox { animation: none; } }
 
-/* Состояние: голодный → рамка «холоднее» (нужно покормить). Бодрый/в норме — тёплая оранжевая (по умолчанию). */
-.fox-wrap .medallion.is-hungry { box-shadow: 0 0 0 3px #8a93a6, var(--shadow-raised); }
+/* ===================== PRO-бейдж (общий) ===================== */
+.pro-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 6px; border-radius: var(--radius-pill); background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; line-height: 1.5; flex: 0 0 auto; white-space: nowrap; }
+.pro-badge svg { display: block; }
 
-@media (prefers-reduced-motion: reduce) {
-  .fox-stage .medallion, .fox-stage::after { animation: none; }
-}
-.ryzh-says { position: relative; max-width: 280px; margin: 14px auto 16px; text-align: center; background: var(--surface-card); box-shadow: var(--shadow-card); border-radius: 14px; padding: 10px 14px; font-size: var(--fs-small); line-height: 1.4; color: var(--text-secondary); }
-.ryzh-says::before { content: ''; position: absolute; top: -6px; left: 50%; width: 12px; height: 12px; margin-left: -6px; background: var(--surface-card); transform: rotate(45deg); }
-.ryzh-says b { color: var(--accent); }
+/* ===================== Карточка «Рыж-тренер PRO» (дашборд) ===================== */
+.ai-promo { position: relative; overflow: hidden; width: 100%; margin: 0 0 12px; padding: 15px; border: none; border-radius: var(--radius); background: linear-gradient(135deg, #2A2620 0%, #3b332a 100%); color: #fff; box-shadow: var(--shadow-raised); cursor: pointer; display: flex; align-items: center; gap: 13px; text-align: left; }
+.ai-promo-glow { position: absolute; right: -24px; top: -24px; width: 110px; height: 110px; border-radius: 50%; background: radial-gradient(circle, rgba(232,93,28,0.35), transparent 70%); }
+.ai-promo-ico { position: relative; width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12px; background: rgba(232,93,28,0.22); color: var(--accent); display: flex; align-items: center; justify-content: center; }
+.ai-promo-main { position: relative; flex: 1; min-width: 0; }
+.ai-promo-titlerow { display: flex; align-items: center; gap: 7px; }
+.ai-promo-title { font-size: 17px; font-weight: 600; }
+.ai-promo-sub { font-size: var(--fs-small); color: rgba(255,255,255,0.72); margin-top: 2px; }
+.ai-promo-chev { position: relative; color: rgba(255,255,255,0.6); display: flex; flex: 0 0 auto; }
 
 /* ===================== Серии (стрики) ===================== */
 .streaks-row { display: flex; gap: 10px; margin-bottom: 12px; }
@@ -430,3 +445,62 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .tab .tab-ico { display: flex; }
 .tab.active { color: var(--accent); font-weight: 600; }
 .tab:disabled { opacity: 1; }
+
+/* ===================== Аватар-лис в круглом медальоне (Рыж AI) ===================== */
+.fox-avatar { border-radius: 50%; overflow: hidden; flex: 0 0 auto; background: radial-gradient(circle at 50% 34%, var(--medallion-1), var(--medallion-2) 72%); box-shadow: 0 0 0 3px var(--accent); }
+.fox-avatar img { width: 128%; height: 128%; object-fit: cover; object-position: 50% 16%; margin: -6% 0 0 -14%; display: block; }
+.fox-avatar.lg { width: 84px; height: 84px; }
+.fox-avatar.xl { width: 104px; height: 104px; }
+
+/* ===================== Экран «Рыж AI» (пейволл + подписан) ===================== */
+.ai-hero { position: relative; overflow: hidden; background: linear-gradient(160deg, #2A2620 0%, #3b332a 100%); color: #fff; padding: calc(env(safe-area-inset-top, 0px) + 26px) 20px 22px; }
+.ai-hero-glow { position: absolute; right: -30px; top: -30px; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, rgba(232,93,28,0.4), transparent 70%); }
+.ai-hero-inner { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+.ai-hero-titlerow { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ai-hero-title { font-size: 23px; font-weight: 700; }
+.ai-hero-sub { font-size: 15px; color: rgba(255,255,255,0.78); max-width: 280px; line-height: 1.45; }
+.ai-benefits { padding: 18px 16px 8px; display: flex; flex-direction: column; gap: 12px; max-width: 560px; margin: 0 auto; }
+.ai-benefit { display: flex; align-items: flex-start; gap: 13px; }
+.ai-benefit-ico { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 11px; background: var(--accent-wash); color: var(--accent); display: flex; align-items: center; justify-content: center; }
+.ai-benefit-title { font-size: 16px; font-weight: 600; }
+.ai-benefit-sub { font-size: var(--fs-small); color: var(--text-hint); line-height: 1.4; }
+.ai-plans { padding: 14px 16px 0; display: flex; flex-direction: column; gap: 10px; max-width: 560px; margin: 0 auto; }
+.plan-row { width: 100%; margin: 0; display: flex; align-items: center; gap: 12px; padding: 13px 15px; border-radius: var(--radius); cursor: pointer; text-align: left; background: var(--surface-card); box-shadow: var(--shadow-card); border: 2px solid transparent; }
+.plan-row.active { border-color: var(--accent); }
+.plan-radio { width: 20px; height: 20px; flex: 0 0 20px; border-radius: 50%; border: 2px solid var(--border-input); transition: border 0.1s var(--ease-out); }
+.plan-row.active .plan-radio { border: 6px solid var(--accent); }
+.plan-main { flex: 1; min-width: 0; }
+.plan-titlerow { display: flex; align-items: center; gap: 7px; }
+.plan-title { font-size: 16px; font-weight: 600; }
+.plan-badge { font-size: 10px; font-weight: 700; color: var(--accent); background: var(--accent-wash); padding: 2px 7px; border-radius: var(--radius-pill); }
+.plan-note { font-size: var(--fs-small); color: var(--text-hint); }
+.plan-price { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+.ai-cta-wrap { padding: 16px; max-width: 560px; margin: 0 auto; }
+.ai-cta { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; }
+.ai-cta-note { text-align: center; font-size: 12px; color: var(--text-hint); margin-top: 8px; }
+/* подписан */
+.ai-subscribed { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 40px 22px 24px; max-width: 560px; margin: 0 auto; }
+.ai-subscribed .ai-hero-titlerow { margin-top: 14px; }
+.ai-sub-title { font-size: 22px; font-weight: 700; }
+.ai-sub-text { font-size: 15px; color: var(--text-hint); margin-top: 8px; max-width: 280px; line-height: 1.45; }
+.ai-sub-hints { width: 100%; max-width: 320px; margin: 22px 0; display: flex; flex-direction: column; gap: 12px; }
+.ai-sub-hint { display: flex; align-items: center; gap: 12px; text-align: left; }
+.ai-sub-hint-ico { width: 38px; height: 38px; flex: 0 0 38px; border-radius: 10px; background: var(--accent-wash); color: var(--accent); display: flex; align-items: center; justify-content: center; }
+.ai-sub-hint span { font-size: 15px; color: var(--text-primary); }
+.ai-subscribed .ai-cta { width: 100%; max-width: 320px; }
+
+/* ===================== Еда: кнопки добавления + PRO-диктовка ===================== */
+.add-actions { display: flex; gap: 10px; margin-bottom: 14px; }
+.add-action { flex: 1; width: auto; margin: 0; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 10px; border-radius: var(--radius-btn); background: var(--surface-card); color: var(--text-primary); box-shadow: var(--shadow-card); font-size: 15px; font-weight: 600; }
+.aa-ico { color: var(--accent); display: flex; flex: 0 0 auto; }
+.dictate-row { width: 100%; margin: 0 0 14px; display: flex; align-items: center; gap: 11px; padding: 11px 13px; border: 1px dashed var(--accent); border-radius: var(--radius); background: var(--accent-wash); text-align: left; }
+.dictate-ico { color: var(--accent); display: flex; flex: 0 0 auto; }
+.dictate-label { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; color: var(--text-primary); }
+
+/* ===================== Бюджет дня (карточка «Осталось на сегодня») ===================== */
+.fb-head { display: flex; align-items: baseline; justify-content: space-between; }
+.fb-label { font-size: var(--fs-small); color: var(--text-hint); }
+.fb-val { font-size: 22px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+.fb-val.over { color: var(--danger); }
+.fb-unit { font-size: 12px; font-weight: 500; color: var(--text-hint); }
+#food-budget #fb-macros { margin-top: 7px; }

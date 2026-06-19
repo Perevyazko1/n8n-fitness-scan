@@ -2,6 +2,9 @@
 // Новый Django-API (переезд с n8n-вебхуков). Пути те же, префикс /webhook → /api.
 const API_BASE = 'https://n8n-fitness.ru/api';
 const WEBHOOK_URL = `${API_BASE}/scan-barcode`;
+// Диплинк в чат Telegram-бота Рыжа (PRO-ассистент живёт там, а не в Mini App).
+// TODO: вписать настоящий username бота вместо плейсхолдера.
+const RYZH_BOT_URL = 'https://t.me/'; // TODO: 'https://t.me/<bot_username>'
 
 // === Telegram WebApp ===
 const tg = window.Telegram?.WebApp;
@@ -36,7 +39,8 @@ let codeReader = null;
 let scanning = false;
 let currentProduct = null;   // { name, brand, kcal100, p100, f100, c100, default_serving_g }
 let currentBarcode = null;
-let currentTab = null;       // dashboard | foodlog | workout | scanner
+let currentTab = null;       // dashboard | foodlog | ryzhai | workout | scanner
+let lastKcalTarget = null;   // дневная норма ккал из дашборда — для бюджета на экране «Еда»
 
 // === UI helpers ===
 const $ = id => document.getElementById(id);
@@ -46,7 +50,7 @@ const screens = {
   addproduct: $('addproduct'), pickproduct: $('pickproduct'), logfood: $('logfood'), exform: $('exform'),
   prodform: $('prodform'), manualfood: $('manualfood'),
   blockform: $('blockform'),
-  settings: $('settings'), reggate: $('reggate'),
+  settings: $('settings'), reggate: $('reggate'), ryzhai: $('ryzhai'),
 };
 
 function showScreen(name) {
@@ -55,20 +59,11 @@ function showScreen(name) {
 }
 
 // === Линейные иконки (бренд Cream, без эмодзи) ===
-const ICON_PATHS = {
-  dumbbell: '<path d="M6.6 8 V16"/><path d="M4.2 9.6 V14.4"/><path d="M17.4 8 V16"/><path d="M19.8 9.6 V14.4"/><path d="M6.6 12 H17.4"/>',
-  check:    '<path d="M5 12.5 l4.2 4.2 L19 6.8"/>',
-  leaf:     '<path d="M5 19 C5 10.7 11.4 5 19 5 C19 13.3 12.6 19 5 19 Z"/><path d="M7.4 16.6 C10.3 12.8 14 9.4 17 7.4"/>',
-  flame:    '<path d="M12 3.4 C12 7 16 8.6 16 12.8 A4 4 0 1 1 8 12.8 C8 10.9 9 9.5 10.2 8.7 C10 10.3 10.8 11.3 12 11.5 C13 9.9 12.4 6.5 12 3.4 Z"/>',
-  snowflake:'<path d="M12 3.5 V20.5"/><path d="M4.6 7.75 L19.4 16.25"/><path d="M19.4 7.75 L4.6 16.25"/><path d="M12 3.5 l-1.8 1.9 M12 3.5 l1.8 1.9 M12 20.5 l-1.8-1.9 M12 20.5 l1.8-1.9"/><path d="M4.6 7.75 l0.3 2.6 M4.6 7.75 l2.6-0.3 M19.4 16.25 l-0.3-2.6 M19.4 16.25 l-2.6 0.3"/><path d="M19.4 7.75 l-2.6-0.3 M19.4 7.75 l-0.3 2.6 M4.6 16.25 l2.6 0.3 M4.6 16.25 l0.3-2.6"/>',
-  plus:     '<path d="M12 5 V19 M5 12 H19"/>',
-  repeat:   '<path d="M18.6 11.8 A6.8 6.8 0 1 0 17.2 16.6"/><path d="M18.9 5 V8.4 H15.5"/>',
-  edit:     '<path d="M14.4 5.4 l4.2 4.2"/><path d="M5 19 l0.9-3.7 L15.4 5 l3.6 3.6 L9.7 18.1 Z"/>',
-  close:    '<path d="M6.5 6.5 L17.5 17.5 M17.5 6.5 L6.5 17.5"/>',
-};
+// Общий набор — из ryzh-icons.js (подключён в index.html). Локальный iconSvg —
+// тонкая обёртка над ryzhIcon(), чтобы все вызовы получили полный набор иконок
+// (meal/home/scan/lock/trophy/settings/chevron*/sparkles/crown/mic/send + базовые).
 function iconSvg(name, size = 22, fill = false) {
-  const f = fill && name === 'flame' ? 'currentColor' : 'none';
-  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="${f}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON_PATHS[name] || ''}</svg>`;
+  return ryzhIcon(name, { size, fill });
 }
 function pluralDays(n) {
   const a = Math.abs(n) % 100, b = a % 10;
@@ -157,6 +152,7 @@ function goTab(name) {
   stopScanner();              // уходим с камеры — гасим её
   showScreen(name);
   if (name === 'dashboard') loadDashboard();
+  if (name === 'ryzhai') renderRyzhAi();
   if (name === 'workout') { wktEdit = false; setWktMode('train'); }
   if (name === 'foodlog') setFoodMode('diary');
 }
@@ -244,6 +240,26 @@ function ryzhVoice(d) {
   return 'Идём по плану. Так держать!';
 }
 
+// Статус лиса на сегодня → кольцо/бейдж медальона (см. .hero-fox.s-*):
+// risk — стрик под угрозой (заморожен); lost — перебор по ккал; win — трен закрыта + поел; иначе норма.
+function foxStatus(d) {
+  const st = d.streaks || {}, k = d.kcal || {}, w = d.workout_today || {};
+  const left = Math.round(k.left ?? 0);
+  const frozen = (st.nutrition && st.nutrition.status === 'frozen')
+              || (st.workout && st.workout.status === 'frozen');
+  if (frozen) return 'risk';
+  if (left < 0) return 'lost';
+  if (w.is_workout && w.done && (k.eaten || 0) > 0) return 'win';
+  return 'normal';
+}
+
+// Реплика Рыжа в комикс-облаке. Сбрасываем разворот при каждом обновлении.
+function setHeroBubble(text) {
+  const el = $('hero-bubble-text');
+  if (el) el.innerHTML = `<b>Рыж:</b> ${text}`;
+  $('hero-bubble')?.classList.remove('open');
+}
+
 function renderDashboard(d) {
   $('dash-date').textContent = d.date || '';
 
@@ -253,12 +269,13 @@ function renderDashboard(d) {
     if (document.documentElement.dataset.theme !== srv) applyTheme(srv);
   }
 
-  // --- Маскот-лис: тир тела (мышцы×живот) + эмоция на сегодня ---
-  // Голодный сет (_hungry) добавляется в img/ постепенно; пока какого-то нет —
-  // показываем «битую» картинку (это норм, заполняется по мере генерации арта).
+  // --- Маскот-лис: тир тела (мышцы×живот) + эмоция + статус дня ---
+  // Тело: fox_m{мышцы}_b{живот}.png; голодный сет (_hungry) — когда за день не ел.
+  // Статус (кольцо/бейдж медальона): норма / стрик под угрозой / цель закрыта / срыв.
   const av = d.avatar || {};
   const m = av.muscle_tier ?? 2, b = av.belly_tier ?? 1;  // дефолт — середина
-  const mood = foxMood(d);
+  const mood = foxMood(d);          // 'hungry' | 'normal' — арт тела
+  const status = foxStatus(d);      // 'normal' | 'risk' | 'win' | 'lost' — кольцо/бейдж
   const fox = $('fox-avatar');
   if (fox) {
     fox.onerror = null;          // не прячем и не откатываем — пусть будет битая, если арта нет
@@ -267,11 +284,23 @@ function renderDashboard(d) {
       ? `img/fox_m${m}_b${b}_hungry.png`
       : `img/fox_m${m}_b${b}.png`;
   }
-  // тинт рамки по состоянию: голодный — «холодная», бодрый — тёплая оранжевая
-  $('fox-medallion')?.classList.toggle('is-hungry', mood === 'hungry');
+  // статус → класс на .hero-fox (цвет кольца + тинт арта)
+  const heroFox = $('hero-fox');
+  if (heroFox) {
+    heroFox.classList.remove('s-risk', 's-win', 's-lost');
+    if (status !== 'normal') heroFox.classList.add('s-' + status);
+  }
+  // бейдж на медальоне: риск — снежинка (синяя), цель закрыта — кубок (зелёный)
+  const badge = $('fox-badge');
+  if (badge) {
+    badge.classList.remove('risk', 'win');
+    if (status === 'risk') { badge.classList.add('risk'); badge.innerHTML = iconSvg('snowflake', 19); badge.classList.remove('hidden'); }
+    else if (status === 'win') { badge.classList.add('win'); badge.innerHTML = iconSvg('trophy', 19); badge.classList.remove('hidden'); }
+    else { badge.classList.add('hidden'); badge.innerHTML = ''; }
+  }
 
-  // --- Голос Рыжа --- (приоритет — фраза с бэка; ryzhVoice — фолбэк для старого API)
-  $('ryzh-says').innerHTML = `<b>Рыж:</b> ${d.ryzh_says || ryzhVoice(d)}`;
+  // --- Голос Рыжа в комикс-облаке --- (приоритет — фраза с бэка; ryzhVoice — фолбэк)
+  setHeroBubble(d.ryzh_says || ryzhVoice(d));
 
   // --- Серии ---
   const st = d.streaks || {};
@@ -293,6 +322,7 @@ function renderDashboard(d) {
 
   // --- Калории (кольцо + легенда) ---
   const k = d.kcal || {};
+  lastKcalTarget = Math.round(k.target || 0) || null;   // кэш для бюджета на «Еде»
   const left = Math.round(k.left ?? 0);
   const over = left < 0;
   $('kcal-left').textContent = over ? -left : left;
@@ -313,6 +343,83 @@ function setMacro(key, m, unit) {
   const eaten = round(m.eaten || 0), target = Math.round(m.target || 0);
   $('bar-' + key).style.width = pct(eaten, target) + '%';
   $('val-' + key).textContent = target ? `${eaten} / ${target}${unit}` : `${eaten}${unit}`;
+}
+
+// === Рыж AI (подписка PRO) ===
+// Чата в Mini App НЕТ — ассистент живёт в чате Telegram-бота. Здесь только пейволл
+// + переход в чат. Цены/триал — плейсхолдеры (TODO заменить на реальные).
+let aiPlan = 'year';
+
+function renderRyzhAi() {
+  // TODO: когда бэк начнёт отдавать статус подписки (напр. d.prefs.pro) — читать его тут.
+  const pro = false;
+  $('ai-paywall').classList.toggle('hidden', pro);
+  $('ai-subscribed').classList.toggle('hidden', !pro);
+}
+
+function setAiPlan(plan) {
+  aiPlan = plan;
+  document.querySelectorAll('#ai-plans .plan-row').forEach(r =>
+    r.classList.toggle('active', r.dataset.plan === plan));
+  tg?.HapticFeedback?.selectionChanged?.();
+}
+
+function aiSubscribe() {
+  // TODO: здесь подключить реальную оплату по плану `aiPlan`. Пока — показываем
+  // экран «PRO активен» с переходом в чат бота (где и живёт ассистент).
+  $('ai-paywall').classList.add('hidden');
+  $('ai-subscribed').classList.remove('hidden');
+  tg?.HapticFeedback?.notificationOccurred?.('success');
+}
+
+function openRyzhBot() {
+  try {
+    if (tg?.openTelegramLink) tg.openTelegramLink(RYZH_BOT_URL);
+    else window.open(RYZH_BOT_URL, '_blank');
+  } catch { window.open(RYZH_BOT_URL, '_blank'); }
+}
+
+// Преимущества PRO и подсказки «после оформления» — рисуются один раз.
+const AI_BENEFITS = [
+  { icon: 'check',    title: 'План на каждое утро',     sub: 'Рыж присылает, что съесть и как потренироваться сегодня' },
+  { icon: 'mic',      title: 'Надиктуй, что съел',      sub: 'Голосом или текстом — посчитаю калории и КБЖУ сам' },
+  { icon: 'leaf',     title: 'Что полезно, что вредно', sub: 'Разберу любой продукт и состав за секунды' },
+  { icon: 'repeat',   title: 'Подскажу альтернативы',   sub: 'Заменю вредное на вкусное и полезное' },
+  { icon: 'dumbbell', title: 'План тренировок',         sub: 'Составлю под цель и скорректирую на ходу' },
+  { icon: 'sparkles', title: 'Любой вопрос 24/7',       sub: 'Питание, тренировки, восстановление — спроси что угодно' },
+];
+const AI_HINTS = [
+  { icon: 'check',    text: 'Утренний план придёт в чат сам' },
+  { icon: 'mic',      text: 'Надиктуй голосом, что съел' },
+  { icon: 'sparkles', text: 'Спроси что угодно про еду и тренировки' },
+];
+
+// Заполнить статичные иконки/списки бренд-набором (один раз при загрузке).
+function initStaticUi() {
+  if (typeof ryzhIcon !== 'function') return;   // на всякий случай (icons-скрипт не загрузился)
+  const pro = () => ryzhIcon('crown', { size: 12 }) + ' PRO';
+  // дашборд — карточка «Рыж-тренер»
+  $('ai-promo-ico').innerHTML  = ryzhIcon('sparkles', { size: 24, fill: true });
+  $('ai-promo-pro').innerHTML  = pro();
+  $('ai-promo-chev').innerHTML = ryzhIcon('chevronRight', { size: 20 });
+  // еда — кнопки + диктовка
+  $('aa-from-ico').innerHTML   = ryzhIcon('meal', { size: 19 });
+  $('aa-manual-ico').innerHTML = ryzhIcon('edit', { size: 19 });
+  $('dictate-ico').innerHTML   = ryzhIcon('mic', { size: 20 });
+  $('dictate-pro').innerHTML   = pro();
+  // трен — план с Рыжем
+  $('wkt-aiplan-ico').innerHTML = ryzhIcon('sparkles', { size: 20, fill: true });
+  $('wkt-aiplan-pro').innerHTML = pro();
+  // экран Рыж AI
+  $('ai-hero-pro').innerHTML   = pro();
+  $('ai-sub-pro').innerHTML    = pro();
+  $('ai-subscribe').innerHTML  = ryzhIcon('sparkles', { size: 20, fill: true }) + ' Попробовать Рыж PRO';
+  $('ai-openchat').innerHTML   = ryzhIcon('send', { size: 20, fill: true }) + ' Открыть чат с Рыжем';
+  $('ai-benefits').innerHTML = AI_BENEFITS.map(bn =>
+    `<div class="ai-benefit"><span class="ai-benefit-ico">${ryzhIcon(bn.icon, { size: 21, fill: bn.icon === 'sparkles' })}</span>` +
+    `<div><div class="ai-benefit-title">${bn.title}</div><div class="ai-benefit-sub">${bn.sub}</div></div></div>`).join('');
+  $('ai-sub-hints').innerHTML = AI_HINTS.map(h =>
+    `<div class="ai-sub-hint"><span class="ai-sub-hint-ico">${ryzhIcon(h.icon, { size: 20, fill: h.icon === 'sparkles' })}</span><span>${h.text}</span></div>`).join('');
 }
 
 // === Настройки (профиль + КБЖУ) ===
@@ -471,6 +578,7 @@ async function loadWorkout(forcedBlock) {
   $('wkt-error').classList.add('hidden');
   $('wkt-blocks').classList.add('hidden');
   $('wkt-progress').classList.add('hidden');
+  $('wkt-aiplan').classList.add('hidden');
   $('wkt-rest').classList.add('hidden');
   $('wkt-list').classList.add('hidden');
   $('wkt-complete').classList.add('hidden');
@@ -566,6 +674,8 @@ function renderWorkout(d) {
   // карточка прогресса блока (метка · N/M · бар · осталось) — только в режиме просмотра
   if (wktEdit) $('wkt-progress').classList.add('hidden');
   else renderWktProgress(d.label, exs);
+  // PRO-вход «Составить план с Рыжем» — только в режиме просмотра
+  $('wkt-aiplan').classList.toggle('hidden', wktEdit);
 
   const list = $('wkt-list');
   list.innerHTML = '';
@@ -789,8 +899,8 @@ function exerciseSub(ex) {
   if (ex.sets && ex.reps) parts.push(`${ex.sets}×${ex.reps}`);
   else if (ex.reps) parts.push(ex.reps);
   if (ex.weight) parts.push(ex.weight);
-  // расход: «🔥 N ккал» — ручной без тильды, авто-оценка с «~»
-  if (ex.kcal > 0) parts.push(`🔥 ${ex.kcal_override != null ? '' : '~'}${ex.kcal} ккал`);
+  // расход: «N ккал» — ручной без тильды, авто-оценка с «~» (без эмодзи)
+  if (ex.kcal > 0) parts.push(`${ex.kcal_override != null ? '' : '~'}${ex.kcal} ккал`);
   if (ex.note) parts.push(ex.note);
   return parts.join(' · ');
 }
@@ -1469,8 +1579,27 @@ function renderFoodList() {
     fat: a.fat + (i.fat || 0), carbs: a.carbs + (i.carbs || 0),
   }), { kcal: 0, protein: 0, fat: 0, carbs: 0 });
   $('food-sub').textContent = '';
-  $('fb-kcal').textContent = `${Math.round(s.kcal)} ккал`;
-  $('fb-macros').textContent = `Б${round(s.protein)} · Ж${round(s.fat)} · У${round(s.carbs)}`;
+  const eaten = Math.round(s.kcal);
+  const target = lastKcalTarget;   // дневная норма из дашборда (если уже загружали)
+  const macros = `Б${round(s.protein)} · Ж${round(s.fat)} · У${round(s.carbs)}`;
+  if (target) {
+    const leftK = target - eaten;
+    const over = leftK < 0;
+    $('fb-label').textContent = over ? 'Перебор' : 'Осталось на сегодня';
+    $('fb-kcal').innerHTML = `${Math.abs(leftK)} <span class="fb-unit">ккал</span>`;
+    $('fb-kcal').classList.toggle('over', over);
+    $('fb-bar').style.width = Math.min(100, target > 0 ? eaten / target * 100 : 0) + '%';
+    $('fb-bar').classList.toggle('over', over);
+    $('fb-bar-wrap').classList.remove('hidden');
+    $('fb-macros').textContent = `${eaten} из ${target} · ${macros}`;
+  } else {
+    // нормы пока не знаем (дашборд не открывали) — показываем съеденное за день
+    $('fb-label').textContent = 'Съедено за день';
+    $('fb-kcal').innerHTML = `${eaten} <span class="fb-unit">ккал</span>`;
+    $('fb-kcal').classList.remove('over');
+    $('fb-bar-wrap').classList.add('hidden');
+    $('fb-macros').textContent = macros;
+  }
   $('food-budget').classList.remove('hidden');
 
   // группируем по приёмам пищи, рисуем заголовок приёма + подытог + строки
@@ -1869,6 +1998,17 @@ document.querySelectorAll('.tab').forEach(t =>
   t.addEventListener('click', () => goTab(t.dataset.tab)));
 $('dash-settings').addEventListener('click', openSettings);
 $('card-workout').addEventListener('click', () => goTab('workout'));
+// геро-облако: тап разворачивает/сворачивает длинную реплику
+$('hero-bubble').addEventListener('click', () => $('hero-bubble').classList.toggle('open'));
+// входы в Рыж AI (дашборд / еда / трен)
+$('ai-promo').addEventListener('click', () => goTab('ryzhai'));
+$('food-dictate').addEventListener('click', () => goTab('ryzhai'));
+$('wkt-aiplan').addEventListener('click', () => goTab('ryzhai'));
+// экран Рыж AI: выбор плана / оформление / чат
+document.querySelectorAll('#ai-plans .plan-row').forEach(r =>
+  r.addEventListener('click', () => setAiPlan(r.dataset.plan)));
+$('ai-subscribe').addEventListener('click', aiSubscribe);
+$('ai-openchat').addEventListener('click', openRyzhBot);
 $('set-close').addEventListener('click', () => goTab('dashboard'));
 $('set-save').addEventListener('click', saveSettings);
 // сегменты Пол/Цель + живой пересчёт нормы
@@ -1929,6 +2069,9 @@ $('pp-search').addEventListener('input', (e) => renderPickList(e.target.value));
 $('lf-grams').addEventListener('input', lfUpdatePreview);
 $('lf-add').addEventListener('click', lfAdd);
 $('lf-cancel').addEventListener('click', () => showScreen(lfReturn));
+
+// Статичные иконки/списки бренд-набором (DOM уже распарсен — main.js в конце body).
+initStaticUi();
 
 // === Старт: профиль не заполнен → онбординг на Настройках, иначе Главная ===
 window.addEventListener('load', boot);

@@ -9,7 +9,8 @@
 <title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=37" />
+<link rel="stylesheet" href="styles.css?v=38" />
+<script src="ryzh-icons.js?v=38"></script>
 </head>
 <body>
 
@@ -32,12 +33,29 @@
     <div id="dash-error" class="error-box hidden"></div>
     <div id="dash-content" class="hidden">
 
-      <div class="fox-wrap">
-        <div class="fox-stage">
-          <div class="medallion" id="fox-medallion"><img id="fox-avatar" alt="Рыж" /></div>
+      <div class="ryzh-hero" id="ryzh-hero">
+        <div class="hero-bubble" id="hero-bubble">
+          <div class="hero-bubble-text mini-scroll" id="hero-bubble-text"></div>
+          <svg class="hero-tail" width="56" height="58" viewBox="0 0 56 58" aria-hidden="true">
+            <path d="M2 1 C2 16 6 30 46 54 C30 30 22 16 22 1" fill="#fff" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+            <rect x="3" y="-3" width="21" height="4" fill="#fff"/>
+          </svg>
         </div>
-        <div id="ryzh-says" class="ryzh-says"></div>
+        <div class="hero-fox" id="hero-fox">
+          <div class="medallion" id="fox-medallion"><img id="fox-avatar" alt="Рыж" /></div>
+          <div class="hero-badge hidden" id="fox-badge"></div>
+        </div>
       </div>
+
+      <button class="ai-promo" id="ai-promo" aria-label="Открыть Рыж-тренер">
+        <span class="ai-promo-glow" aria-hidden="true"></span>
+        <span class="ai-promo-ico" id="ai-promo-ico"></span>
+        <span class="ai-promo-main">
+          <span class="ai-promo-titlerow"><span class="ai-promo-title">Рыж-тренер</span><span class="pro-badge" id="ai-promo-pro"></span></span>
+          <span class="ai-promo-sub">Спроси про еду и тренировки — текстом или голосом</span>
+        </span>
+        <span class="ai-promo-chev" id="ai-promo-chev"></span>
+      </button>
 
       <div class="streaks-row" id="card-streaks">
         <div class="streak-badge" id="streak-nutrition" data-label="питание">
@@ -115,11 +133,19 @@
         <button id="food-next" class="nav-btn" aria-label="Следующий день"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 6 L15.5 12 L9.5 18"/></svg></button>
       </div>
       <div id="food-budget" class="card stat hidden">
-        <div class="stat-head"><span class="stat-label">Съедено за день</span><span id="fb-kcal" class="stat-big">—</span></div>
+        <div class="fb-head"><span class="fb-label" id="fb-label">Осталось на сегодня</span><span id="fb-kcal" class="fb-val">—</span></div>
+        <div class="bar" id="fb-bar-wrap"><div id="fb-bar" class="bar-fill"></div></div>
         <div class="muted small" id="fb-macros"></div>
       </div>
-      <button id="food-add-from" class="secondary with-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5 V19 M5 12 H19"/></svg> Добавить из продуктов</button>
-      <button id="food-add-manual" class="ghost with-ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.4 5.4 l4.2 4.2"/><path d="M5 19 l0.9-3.7 L15.4 5 l3.6 3.6 L9.7 18.1 Z"/></svg> Записать вручную</button>
+      <div class="add-actions">
+        <button id="food-add-from" class="add-action"><span class="aa-ico" id="aa-from-ico"></span>Из продуктов</button>
+        <button id="food-add-manual" class="add-action"><span class="aa-ico" id="aa-manual-ico"></span>Вручную</button>
+      </div>
+      <button id="food-dictate" class="dictate-row">
+        <span class="dictate-ico" id="dictate-ico"></span>
+        <span class="dictate-label">Надиктуй Рыжу, что съел</span>
+        <span class="pro-badge" id="dictate-pro"></span>
+      </button>
       <div id="food-loading" class="skeleton">
         <div class="skel-row"><div class="skel skel-line w70"></div><div class="skel skel-line w40"></div></div>
         <div class="skel-row"><div class="skel skel-line w60"></div><div class="skel skel-line w30"></div></div>
@@ -183,6 +209,11 @@
         <div class="bar"><div id="wkt-prog-bar" class="bar-fill"></div></div>
         <div id="wkt-prog-sub" class="muted small"></div>
       </div>
+      <button id="wkt-aiplan" class="dictate-row hidden">
+        <span class="dictate-ico" id="wkt-aiplan-ico"></span>
+        <span class="dictate-label">Составить план с Рыжем</span>
+        <span class="pro-badge" id="wkt-aiplan-pro"></span>
+      </button>
       <div id="wkt-rest" class="soon hidden"></div>
       <div id="wkt-list" class="hidden"></div>
       <button id="wkt-addex" class="secondary with-ico hidden"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5 V19 M5 12 H19"/></svg> Добавить упражнение</button>
@@ -484,11 +515,59 @@
       <div class="card stat set-sec">
         <label class="auto-row"><input id="set-theme" type="checkbox" class="switch" /><span>Тёмная тема</span></label>
         <label class="auto-row"><input id="set-notif" type="checkbox" class="switch" checked /><span>Уведомления Рыжа</span></label>
-        <div class="muted small">Рыж напоминает о еде и сообщает про серии 🔥. Выключи, если не хочешь сообщений.</div>
+        <div class="muted small">Рыж напоминает о еде и сообщает про серии <span class="inline-ico streak"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.4 C12 7 16 8.6 16 12.8 A4 4 0 1 1 8 12.8 C8 10.9 9 9.5 10.2 8.7 C10 10.3 10.8 11.3 12 11.5 C13 9.9 12.4 6.5 12 3.4 Z"/></svg></span>. Выключи, если не хочешь сообщений.</div>
       </div>
 
       <button id="set-save" class="primary">Сохранить</button>
     </div>
+  </div>
+</div>
+
+<!-- ===== Рыж AI (подписка PRO + переход в чат бота) ===== -->
+<div id="ryzhai" class="screen tab-screen">
+  <!-- пейволл: чата в приложении НЕТ, только подписка -->
+  <div class="ai-paywall" id="ai-paywall">
+    <div class="ai-hero">
+      <span class="ai-hero-glow" aria-hidden="true"></span>
+      <div class="ai-hero-inner">
+        <div class="fox-avatar lg"><img src="img/fox_m3_b0.png" alt="Рыж" /></div>
+        <div class="ai-hero-titlerow"><span class="ai-hero-title">Рыж-тренер</span><span class="pro-badge" id="ai-hero-pro"></span></div>
+        <div class="ai-hero-sub">Личный AI-ассистент по питанию и тренировкам — в чате Telegram-бота</div>
+      </div>
+    </div>
+    <div class="ai-benefits" id="ai-benefits"></div>
+    <div class="ai-plans" id="ai-plans">
+      <button class="plan-row active" data-plan="year">
+        <span class="plan-radio"></span>
+        <span class="plan-main">
+          <span class="plan-titlerow"><span class="plan-title">Год</span><span class="plan-badge">Выгодно</span></span>
+          <span class="plan-note">166 ₽ / мес · выгода 44%</span>
+        </span>
+        <span class="plan-price">1 990 ₽</span>
+      </button>
+      <button class="plan-row" data-plan="month">
+        <span class="plan-radio"></span>
+        <span class="plan-main">
+          <span class="plan-titlerow"><span class="plan-title">Месяц</span></span>
+          <span class="plan-note">299 ₽ / мес</span>
+        </span>
+        <span class="plan-price">299 ₽</span>
+      </button>
+    </div>
+    <div class="ai-cta-wrap">
+      <button id="ai-subscribe" class="primary ai-cta"></button>
+      <div class="ai-cta-note">7 дней бесплатно · отмена в любой момент</div>
+    </div>
+  </div>
+
+  <!-- подписан: чат живёт в Telegram-боте -->
+  <div class="ai-subscribed hidden" id="ai-subscribed">
+    <div class="fox-avatar xl"><img src="img/fox_m3_b0.png" alt="Рыж" /></div>
+    <div class="ai-hero-titlerow"><span class="ai-sub-title">Рыж PRO активен</span><span class="pro-badge" id="ai-sub-pro"></span></div>
+    <div class="ai-sub-text">Рыж-тренер ждёт тебя в чате Telegram-бота. Пиши текстом или шли голосовые — прямо там.</div>
+    <div class="ai-sub-hints" id="ai-sub-hints"></div>
+    <button id="ai-openchat" class="primary ai-cta"></button>
+    <div class="ai-cta-note">Откроется чат с ботом в Telegram</div>
   </div>
 </div>
 
@@ -509,10 +588,11 @@
 <nav id="tabbar" class="tabbar">
   <button class="tab" data-tab="dashboard"><span class="tab-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11.2 L12 4 L20.5 11.2"/><path d="M5.6 9.6 V19.5 a0.9 0.9 0 0 0 0.9 0.9 H17.5 a0.9 0.9 0 0 0 0.9-0.9 V9.6"/><path d="M9.8 20.4 v-4.4 a0.8 0.8 0 0 1 0.8-0.8 h2.8 a0.8 0.8 0 0 1 0.8 0.8 v4.4"/></svg></span>Главная</button>
   <button class="tab" data-tab="foodlog"><span class="tab-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.8 h16 a8 8 0 0 1 -16 0 Z"/><path d="M9 5 c-1 1.4 -1 2.6 0 4"/><path d="M12 4.2 c-1 1.6 -1 3 0 4.6"/><path d="M15 5 c-1 1.4 -1 2.6 0 4"/></svg></span>Еда</button>
+  <button class="tab" data-tab="ryzhai"><span class="tab-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 C12.6 7.6 14.4 9.4 18.5 10 C14.4 10.6 12.6 12.4 12 16.5 C11.4 12.4 9.6 10.6 5.5 10 C9.6 9.4 11.4 7.6 12 3.5 Z"/><path d="M18 15 C18.25 16.7 18.8 17.25 20.5 17.5 C18.8 17.75 18.25 18.3 18 20 C17.75 18.3 17.2 17.75 15.5 17.5 C17.2 17.25 17.75 16.7 18 15 Z"/></svg></span>Рыж AI</button>
   <button class="tab" data-tab="workout"><span class="tab-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 8 V16"/><path d="M4.2 9.6 V14.4"/><path d="M17.4 8 V16"/><path d="M19.8 9.6 V14.4"/><path d="M6.6 12 H17.4"/></svg></span>Трен</button>
   <button class="tab" data-tab="scanner"><span class="tab-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5 V6.4 A1.4 1.4 0 0 1 5.4 5 H7.6"/><path d="M20 8.5 V6.4 A1.4 1.4 0 0 0 18.6 5 H16.4"/><path d="M4 15.5 V17.6 A1.4 1.4 0 0 0 5.4 19 H7.6"/><path d="M20 15.5 V17.6 A1.4 1.4 0 0 1 18.6 19 H16.4"/><path d="M8.8 9 V15"/><path d="M12 9 V15"/><path d="M15.2 9 V15"/></svg></span>Сканер</button>
 </nav>
 
-<script src="main.js?v=37"></script>
+<script src="main.js?v=38"></script>
 </body>
 </html>

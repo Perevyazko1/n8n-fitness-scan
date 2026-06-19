@@ -8,14 +8,25 @@ const tg = window.Telegram?.WebApp;
 if (tg) {
   tg.ready();
   tg.expand();
-  // Бренд Cream фиксирует свой тёплый цвет (шапка/фон), тему Telegram игнорируем.
   // disableVerticalSwipes — защита от случайного свайпа-вниз (закрытия) при скролле.
   // Всё под optional-chaining — на старых клиентах просто игнор.
-  try { tg.setHeaderColor?.('#FBF4EA'); } catch {}
-  try { tg.setBackgroundColor?.('#FBF4EA'); } catch {}
   try { tg.disableVerticalSwipes?.(); } catch {}
 }
 const INIT_DATA = tg?.initData || '';
+
+// === Тема (light/dark) ===
+// Источник истины — сервер (Profile.theme), но мгновенно применяем из localStorage,
+// чтобы не было вспышки светлой темы до загрузки дашборда.
+const THEME_BG = { light: '#FBF4EA', dark: '#15161B' };
+function applyTheme(theme) {
+  const t = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('ryzh-theme', t); } catch {}
+  // Бренд фиксирует свой цвет шапки/фона под тему (тему Telegram игнорируем).
+  try { tg?.setHeaderColor?.(THEME_BG[t]); } catch {}
+  try { tg?.setBackgroundColor?.(THEME_BG[t]); } catch {}
+}
+try { applyTheme(localStorage.getItem('ryzh-theme') || 'light'); } catch { applyTheme('light'); }
 
 // Крутим иконку обновления во время загрузки.
 function setRefreshing(btnId, on) { const b = $(btnId); if (b) b.classList.toggle('spinning', on); }
@@ -236,6 +247,12 @@ function ryzhVoice(d) {
 function renderDashboard(d) {
   $('dash-date').textContent = d.date || '';
 
+  // Тема: сервер — источник истины; синхронизируем, если разошлось с локальным кэшем.
+  if (d.prefs && d.prefs.theme) {
+    const srv = d.prefs.theme === 'dark' ? 'dark' : 'light';
+    if (document.documentElement.dataset.theme !== srv) applyTheme(srv);
+  }
+
   // --- Маскот-лис: тир тела (мышцы×живот) + эмоция на сегодня ---
   // Голодный сет (_hungry) добавляется в img/ постепенно; пока какого-то нет —
   // показываем «битую» картинку (это норм, заполняется по мере генерации арта).
@@ -253,8 +270,8 @@ function renderDashboard(d) {
   // тинт рамки по состоянию: голодный — «холодная», бодрый — тёплая оранжевая
   $('fox-medallion')?.classList.toggle('is-hungry', mood === 'hungry');
 
-  // --- Голос Рыжа ---
-  $('ryzh-says').innerHTML = `<b>Рыж:</b> ${ryzhVoice(d)}`;
+  // --- Голос Рыжа --- (приоритет — фраза с бэка; ryzhVoice — фолбэк для старого API)
+  $('ryzh-says').innerHTML = `<b>Рыж:</b> ${d.ryzh_says || ryzhVoice(d)}`;
 
   // --- Серии ---
   const st = d.streaks || {};
@@ -349,6 +366,11 @@ function fillSettings(d) {
   renderTargets(d);
   $('set-auto').checked = true;   // по умолчанию — автоподсчёт
   applyAutoState();
+  // преференсы (тема + уведомления) — сервер источник истины, синхронизируем UI
+  $('set-notif').checked = d.notifications_enabled !== false;
+  const theme = d.theme === 'dark' ? 'dark' : 'light';
+  $('set-theme').checked = theme === 'dark';
+  applyTheme(theme);
 }
 
 function renderTargets(d) {
@@ -1855,6 +1877,16 @@ document.querySelectorAll('#set-sex-seg .seg-btn, #set-goal-seg .seg-btn').forEa
 ['set-height', 'set-weight', 'set-age', 'set-activity'].forEach(id =>
   $(id).addEventListener('input', refreshNorms));
 $('set-auto').addEventListener('change', applyAutoState);
+// Преференсы: применяем сразу + тихо шлём на сервер (оптимистично, без блокировки).
+$('set-theme').addEventListener('change', (e) => {
+  applyTheme(e.target.checked ? 'dark' : 'light');
+  tg?.HapticFeedback?.selectionChanged?.();
+  api('prefs-save', { theme: e.target.checked ? 'dark' : 'light' }).catch(() => {});
+});
+$('set-notif').addEventListener('change', (e) => {
+  tg?.HapticFeedback?.selectionChanged?.();
+  api('prefs-save', { notifications_enabled: e.target.checked }).catch(() => {});
+});
 $('reg-bot').addEventListener('click', () => tg?.close?.());
 $('wkt-prev').addEventListener('click', () => stepWktDay(-1));
 $('wkt-next').addEventListener('click', () => stepWktDay(1));

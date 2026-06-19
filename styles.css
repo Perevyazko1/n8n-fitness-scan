@@ -80,6 +80,33 @@
   --tabbar-h: calc(58px + env(safe-area-inset-bottom, 0px));
 }
 
+/* ============================================================
+   Тёмная тема. Переопределяем только поверхности/текст/границы и
+   пару базовых токенов, что используются напрямую (cream-sunk, warm-400).
+   Бренд-оранжевый и стрик/мороз остаются прежними.
+   ============================================================ */
+:root[data-theme="dark"] {
+  --surface-page:  #15161B;
+  --surface-card:  #202229;
+  --surface-sunk:  #1A1B21;
+  --surface-chip:  #262932;
+  --surface-track: #2C2F38;
+  --cream-sunk:    #1A1B21;   /* шиммер-скелетоны */
+
+  --text-primary:   #F2ECE2;
+  --text-secondary: #B9B2A6;
+  --text-hint:      #8A8275;
+  --warm-400:       #4A4E59;  /* выкл. состояние тумблера */
+
+  --border-hairline: #2C2F38;
+  --border-input:    #343845;
+  --accent-wash:     rgba(232, 93, 28, 0.16);
+
+  --shadow-card:   0 2px 10px rgba(0, 0, 0, 0.35);
+  --shadow-raised: 0 6px 20px rgba(0, 0, 0, 0.45);
+  --shadow-knob:   0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   height: 100%;

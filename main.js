@@ -231,15 +231,20 @@ function foxMood(d) {
 const pickPhrase = (a, b) => (Math.random() < 0.5 ? a : b);
 function ryzhVoice(d) {
   const st = d.streaks || {}, k = d.kcal || {}, w = d.workout_today || {};
+  const n = st.nutrition || {}, ws = st.workout || {}, av = d.avatar || {};
+  const mTier = av.muscle_tier ?? 0, bTier = av.belly_tier ?? 0;
   const left = Math.round(k.left ?? 0);
-  const frozen = (st.nutrition && st.nutrition.status === 'frozen')
-              || (st.workout && st.workout.status === 'frozen');
+  const frozen = n.status === 'frozen' || ws.status === 'frozen';
   if ((k.eaten || 0) <= 0) return pickPhrase(
     'Урчит в животе! Закинь, что съел сегодня — и я приободрюсь.',
     'Я голодный как волк… ну, как лис. Запиши первый приём — оживу.');
   if (frozen) return pickPhrase(
     'Серия висит на волоске — отметься, пока я не покрылся инеем.',
     'Ещё чуть-чуть и серия замёрзнет. Залогируй — спасём её.');
+  if ((ws.current || 0) >= 14) return `Тренируемся ${ws.current} дней подряд — мышцы прут, я в топ-форме!`;
+  if (bTier >= 2) return 'Последние дни перебор — я нагулял бочок. Давай аккуратнее, и он сдуется.';
+  if (mTier >= 3) return 'Мышцы в тонусе — держим режим, красавчик!';
+  if ((n.current || 0) >= 7) return `Питание под контролем уже ${n.current} дней — так и держим!`;
   if (left < 0) return pickPhrase(
     `Перебрали на ${-left} ккал — бывает. Завтра подровняем, я рядом.`,
     `На ${-left} ккал больше плана. Не страшно — держим курс дальше.`);

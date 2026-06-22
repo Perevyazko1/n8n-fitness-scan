@@ -40,6 +40,8 @@ a:active{opacity:.7}
 .tariff-sub{font-size:13px;color:var(--hint);margin-top:2px}
 .tariff-price{font-weight:800;font-size:22px;font-variant-numeric:tabular-nums;flex:0 0 auto}
 .tariff-badge{display:inline-block;margin-left:7px;font-size:11px;font-weight:700;color:var(--accent);background:var(--wash);padding:2px 7px;border-radius:999px;vertical-align:1px}
+.soon-badge{display:inline-block;margin-left:7px;font-size:11px;font-weight:700;color:#fff;background:#3E8CD6;padding:2px 8px;border-radius:999px;vertical-align:1px}
+.soon-note{margin:0 0 4px;padding:12px 14px;background:#E8F1FB;border-radius:12px;font-size:14px;color:#205184}
 /* контакты */
 .contact{display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--border)}
 .contact:last-of-type{border-bottom:none}

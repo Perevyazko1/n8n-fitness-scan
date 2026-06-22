@@ -492,6 +492,16 @@ function initStaticUi() {
   // иконки строк «Документы и поддержка»
   document.querySelectorAll('.doc-row [data-ico]').forEach(el =>
     el.innerHTML = ryzhIcon(el.dataset.ico, { size: el.classList.contains('doc-row-ico') ? 19 : 18 }));
+  // метка «Скоро» у всех платных мест (оплата пока не подключена)
+  const makeSoon = () => { const s = document.createElement('span'); s.className = 'soon-badge'; s.textContent = 'Скоро'; return s; };
+  document.querySelectorAll('.pro-badge').forEach(b => {
+    if (b.closest('#ai-subscribed')) return;                          // «PRO активен» — не «скоро»
+    if (b.nextElementSibling?.classList?.contains('soon-badge')) return;
+    b.after(makeSoon());
+  });
+  document.querySelectorAll('#ai-plans .plan-titlerow').forEach(t => {
+    if (!t.querySelector('.soon-badge')) t.appendChild(makeSoon());   // тарифы Год/Месяц
+  });
 }
 
 // === Настройки (профиль + КБЖУ) ===

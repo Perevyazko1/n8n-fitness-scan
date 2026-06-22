@@ -273,6 +273,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* ===================== PRO-бейдж (общий) ===================== */
 .pro-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 6px; border-radius: var(--radius-pill); background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; line-height: 1.5; flex: 0 0 auto; white-space: nowrap; }
 .pro-badge svg { display: block; }
+/* метка «Скоро» — платные функции ещё не подключены (синеголубая, рядом с PRO/тарифами) */
+.soon-badge { display: inline-flex; align-items: center; margin-left: 5px; padding: 2px 7px; border-radius: var(--radius-pill); background: var(--frost); color: #fff; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; line-height: 1.5; flex: 0 0 auto; white-space: nowrap; }
 
 /* ===================== Карточка «Рыж-тренер PRO» (дашборд) ===================== */
 .ai-promo { position: relative; overflow: hidden; width: 100%; margin: 0 0 12px; padding: 15px; border: none; border-radius: var(--radius); background: linear-gradient(135deg, #2A2620 0%, #3b332a 100%); color: #fff; box-shadow: var(--shadow-raised); cursor: pointer; display: flex; align-items: center; gap: 13px; text-align: left; }

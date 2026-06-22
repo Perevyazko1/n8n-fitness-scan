@@ -9,8 +9,8 @@
 <title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=42" />
-<script src="ryzh-icons.js?v=42"></script>
+<link rel="stylesheet" href="styles.css?v=43" />
+<script src="ryzh-icons.js?v=43"></script>
 </head>
 <body>
 
@@ -583,6 +583,17 @@
   </div>
 </div>
 
+<!-- ===== Просмотр документа (политика/оферта/тарифы/поддержка) внутри аппа ===== -->
+<div id="docview" class="screen tab-screen">
+  <div class="page">
+    <div class="set-header">
+      <button id="docview-close" class="icon-btn" aria-label="Назад"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6 L8.5 12 L14.5 18"/></svg></button>
+      <h1 id="docview-title">Документ</h1>
+    </div>
+    <div id="docview-body" class="docview-body"></div>
+  </div>
+</div>
+
 <!-- ===== Блок доступа (забанен владельцем) ===== -->
 <div id="reggate" class="screen">
   <div class="card" style="text-align:center; align-items:center; justify-content:center; height:100%;">
@@ -605,6 +616,6 @@
   <button class="tab" data-tab="scanner"><span class="tab-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5 V6.4 A1.4 1.4 0 0 1 5.4 5 H7.6"/><path d="M20 8.5 V6.4 A1.4 1.4 0 0 0 18.6 5 H16.4"/><path d="M4 15.5 V17.6 A1.4 1.4 0 0 0 5.4 19 H7.6"/><path d="M20 15.5 V17.6 A1.4 1.4 0 0 1 18.6 19 H16.4"/><path d="M8.8 9 V15"/><path d="M12 9 V15"/><path d="M15.2 9 V15"/></svg></span>Сканер</button>
 </nav>
 
-<script src="main.js?v=42"></script>
+<script src="main.js?v=43"></script>
 </body>
 </html>

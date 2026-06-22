@@ -50,7 +50,7 @@ const screens = {
   addproduct: $('addproduct'), pickproduct: $('pickproduct'), logfood: $('logfood'), exform: $('exform'),
   prodform: $('prodform'), manualfood: $('manualfood'),
   blockform: $('blockform'),
-  settings: $('settings'), reggate: $('reggate'), ryzhai: $('ryzhai'),
+  settings: $('settings'), reggate: $('reggate'), ryzhai: $('ryzhai'), docview: $('docview'),
 };
 
 function showScreen(name) {
@@ -398,13 +398,54 @@ function openRyzhBot() {
   } catch { window.open(RYZH_BOT_URL, '_blank'); }
 }
 
-// Открыть статичную инфо-страницу (политика/оферта/тарифы/поддержка) во внутреннем
-// браузере Telegram. Страницы лежат рядом с index.html на том же сайте.
-function openDoc(page) {
+// Инфо-страницы (политика/оферта/тарифы/поддержка) открываем ВНУТРИ аппа: тянем
+// контент тех же .html (единый источник, они же — публичные ссылки для банка) и
+// показываем как обычный экран. Без внешнего браузера.
+const DOC_TITLES = {
+  'pricing.html': 'Тарифы',
+  'terms.html': 'Пользовательское соглашение',
+  'privacy.html': 'Политика конфиденциальности',
+  'support.html': 'Поддержка',
+};
+let docReturn = 'settings';   // куда вернуться по «назад» из docview
+
+async function openDoc(page) {
   if (!page) return;
-  const url = new URL(page, location.href).href;
-  try { if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank'); }
-  catch { window.open(url, '_blank'); }
+  page = page.split(/[?#]/)[0];
+  // запоминаем экран, с которого открыли (профиль / пейволл), — для «назад»
+  const cur = document.querySelector('.screen.active');
+  if (cur && cur.id !== 'docview') docReturn = cur.id;
+  $('docview-title').textContent = DOC_TITLES[page] || 'Документ';
+  const body = $('docview-body');
+  body.innerHTML = '<div class="loading">Загрузка…</div>';
+  showScreen('docview');
+  try {
+    const r = await fetch(page, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const html = await r.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const card = doc.querySelector('.doc-card');
+    const upd = doc.querySelector('.doc-upd');
+    body.innerHTML =
+      (upd ? `<div class="docview-upd">${upd.innerHTML}</div>` : '') +
+      (card ? `<div class="doc-card">${card.innerHTML}</div>` : html);
+    // ссылки внутри документа: на другие .html — открываем тоже в аппе;
+    // t.me/tg/mailto/внешние — через нативные методы Telegram.
+    body.querySelectorAll('a[href]').forEach(a => {
+      const href = a.getAttribute('href') || '';
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (/\.html(\?|#|$)/.test(href)) { openDoc(href); return; }
+        try {
+          if (/^(https:\/\/t\.me|tg:)/.test(href) && tg?.openTelegramLink) tg.openTelegramLink(href);
+          else if (tg?.openLink) tg.openLink(href);
+          else window.open(href, '_blank');
+        } catch { window.open(href, '_blank'); }
+      });
+    });
+  } catch (e) {
+    body.innerHTML = '<div class="error-box">Не удалось загрузить документ. Попробуй позже.</div>';
+  }
 }
 
 // Преимущества PRO и подсказки «после оформления» — рисуются один раз.
@@ -2045,6 +2086,7 @@ document.querySelectorAll('.doc-row').forEach(b =>
   b.addEventListener('click', () => openDoc(b.dataset.doc)));
 document.querySelectorAll('.ai-legal a[data-doc]').forEach(a =>
   a.addEventListener('click', (e) => { e.preventDefault(); openDoc(a.dataset.doc); }));
+$('docview-close').addEventListener('click', () => showScreen(docReturn || 'settings'));
 $('set-close').addEventListener('click', () => goTab('dashboard'));
 $('set-save').addEventListener('click', saveSettings);
 // сегменты Пол/Цель + живой пересчёт нормы

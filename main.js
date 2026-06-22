@@ -398,6 +398,15 @@ function openRyzhBot() {
   } catch { window.open(RYZH_BOT_URL, '_blank'); }
 }
 
+// Открыть статичную инфо-страницу (политика/оферта/тарифы/поддержка) во внутреннем
+// браузере Telegram. Страницы лежат рядом с index.html на том же сайте.
+function openDoc(page) {
+  if (!page) return;
+  const url = new URL(page, location.href).href;
+  try { if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank'); }
+  catch { window.open(url, '_blank'); }
+}
+
 // Преимущества PRO и подсказки «после оформления» — рисуются один раз.
 const AI_BENEFITS = [
   { icon: 'check',    title: 'План на каждое утро',     sub: 'Рыж присылает, что съесть и как потренироваться сегодня' },
@@ -439,6 +448,9 @@ function initStaticUi() {
     `<div><div class="ai-benefit-title">${bn.title}</div><div class="ai-benefit-sub">${bn.sub}</div></div></div>`).join('');
   $('ai-sub-hints').innerHTML = AI_HINTS.map(h =>
     `<div class="ai-sub-hint"><span class="ai-sub-hint-ico">${ryzhIcon(h.icon, { size: 20, fill: h.icon === 'sparkles' })}</span><span>${h.text}</span></div>`).join('');
+  // иконки строк «Документы и поддержка»
+  document.querySelectorAll('.doc-row [data-ico]').forEach(el =>
+    el.innerHTML = ryzhIcon(el.dataset.ico, { size: el.classList.contains('doc-row-ico') ? 19 : 18 }));
 }
 
 // === Настройки (профиль + КБЖУ) ===
@@ -2028,6 +2040,11 @@ document.querySelectorAll('#ai-plans .plan-row').forEach(r =>
   r.addEventListener('click', () => setAiPlan(r.dataset.plan)));
 $('ai-subscribe').addEventListener('click', aiSubscribe);
 $('ai-openchat').addEventListener('click', openRyzhBot);
+// документы/поддержка (профиль) + легал-ссылки в пейволле
+document.querySelectorAll('.doc-row').forEach(b =>
+  b.addEventListener('click', () => openDoc(b.dataset.doc)));
+document.querySelectorAll('.ai-legal a[data-doc]').forEach(a =>
+  a.addEventListener('click', (e) => { e.preventDefault(); openDoc(a.dataset.doc); }));
 $('set-close').addEventListener('click', () => goTab('dashboard'));
 $('set-save').addEventListener('click', saveSettings);
 // сегменты Пол/Цель + живой пересчёт нормы

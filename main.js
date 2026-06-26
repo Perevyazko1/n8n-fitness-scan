@@ -47,7 +47,7 @@ const $ = id => document.getElementById(id);
 const screens = {
   dashboard: $('dashboard'), foodlog: $('foodlog'), workout: $('workout'),
   scanner: $('scanner'), card: $('card'), notfound: $('notfound'), manual: $('manual'),
-  addproduct: $('addproduct'), pickproduct: $('pickproduct'), logfood: $('logfood'), exform: $('exform'),
+  addproduct: $('addproduct'), pickproduct: $('pickproduct'), logfood: $('logfood'), editfood: $('editfood'), exform: $('exform'),
   prodform: $('prodform'), manualfood: $('manualfood'),
   blockform: $('blockform'),
   settings: $('settings'), reggate: $('reggate'), ryzhai: $('ryzhai'), docview: $('docview'),
@@ -1258,7 +1258,7 @@ async function prodSave() {
 
 // --- Добавить еду: сперва поиск в базе (OFF), ручной ввод — fallback ---
 function openManualFood() {
-  ['mf-desc', 'mf-kcal', 'mf-protein', 'mf-fat', 'mf-carbs'].forEach(id => $(id).value = '');
+  ['mf-desc', 'mf-kcal', 'mf-grams', 'mf-protein', 'mf-fat', 'mf-carbs'].forEach(id => $(id).value = '');
   $('mf-meal').value = '';
   $('mf-search').value = '';
   $('mf-results').innerHTML = '';
@@ -1323,6 +1323,7 @@ async function manualFoodSave() {
   if (!desc) { showStatus('Впиши, что съел', true); return; }
   if (!kcal) { showStatus('Впиши ккал', true); return; }
   const meal = $('mf-meal').value;
+  const grams = Number($('mf-grams').value) || 0;   // необязательно: если задано — запись весовая
   try {
     const res = await api('repeat-food', {
       date: viewDate || serverToday,
@@ -1331,6 +1332,7 @@ async function manualFoodSave() {
       protein: Number($('mf-protein').value) || 0,
       fat: Number($('mf-fat').value) || 0,
       carbs: Number($('mf-carbs').value) || 0,
+      ...(grams > 0 ? { grams } : {}),
       ...(meal ? { meal_type: meal } : {}),
     });
     if (res.ok === false) throw new Error(res.error || 'fail');
@@ -1468,6 +1470,7 @@ async function lfAdd() {
       description: `${p.name} ${g}г`,
       kcal: m(p.kcal_per_100g), protein: m(p.protein_per_100g),
       fat: m(p.fat_per_100g), carbs: m(p.carbs_per_100g),
+      grams: g,   // граммовка известна → запись весовая, правится пересчётом
       ...(pendingMeal ? { meal_type: pendingMeal } : {}),
     });
     if (res.ok === false) throw new Error(res.error || 'fail');
@@ -1582,7 +1585,8 @@ function toggleRowMenu(it, btn) {
   _menuItem = it;
   m.innerHTML = '';
   const actions = [
-    { ico: 'edit',   label: 'Изменить приём',    fn: () => openMealPicker(it, btn) },
+    { ico: 'edit',   label: 'Изменить',          fn: () => openEditFood(it) },
+    { ico: 'meal',   label: 'Перенести в приём', fn: () => openMealPicker(it, btn) },
     { ico: 'repeat', label: 'Повторить сегодня',  fn: () => repeatFood(it) },
     { ico: 'plus',   label: 'В мои продукты',     fn: () => openAddProduct(it) },
     { ico: 'close',  label: 'Удалить', danger: true, fn: () => deleteFood(it) },
@@ -1790,6 +1794,82 @@ async function deleteFood(it) {
   } catch (e) {
     showStatus('Не удалилось: ' + e.message + '. Обновляю список.', true, 3500);
     loadFoodLog();   // вернуть правду с сервера
+  }
+}
+
+// === Правка уже внесённой записи ===
+// Весовая запись (grams известны) → меняем граммы, КБЖУ пересчитываются от базы на 1г.
+// Порционная (grams == null) → блок граммов скрыт, правим только числа КБЖУ.
+let efItem = null;     // ссылка на редактируемый объект из currentFood.items
+let efBase = null;     // база на 1г {kcal,protein,fat,carbs}; null для порционной записи
+
+function openEditFood(it) {
+  efItem = it;
+  $('ef-desc').value = it.description || '';
+  $('ef-kcal').value = Math.round(it.kcal || 0);
+  $('ef-protein').value = round(it.protein);
+  $('ef-fat').value = round(it.fat);
+  $('ef-carbs').value = round(it.carbs);
+  $('ef-meal').value = it.meal_type || '';
+  const g = Number(it.grams) || 0;
+  if (g > 0) {
+    efBase = {
+      kcal: (it.kcal || 0) / g, protein: (it.protein || 0) / g,
+      fat: (it.fat || 0) / g, carbs: (it.carbs || 0) / g,
+    };
+    $('ef-grams').value = round(g, 0);
+    $('ef-base').textContent =
+      `${round(efBase.kcal * 100)} ккал · Б${round(efBase.protein * 100)} · Ж${round(efBase.fat * 100)} · У${round(efBase.carbs * 100)} на 100г`;
+    $('ef-grams-box').classList.remove('hidden');
+  } else {
+    efBase = null;
+    $('ef-grams-box').classList.add('hidden');
+  }
+  showScreen('editfood');
+}
+
+// Пересчёт КБЖУ при смене граммов (пустое/0 — не трогаем поля).
+function efUpdatePreview() {
+  if (!efBase) return;
+  const g = Number($('ef-grams').value) || 0;
+  if (!g) return;
+  $('ef-kcal').value = Math.round(efBase.kcal * g);
+  $('ef-protein').value = round(efBase.protein * g);
+  $('ef-fat').value = round(efBase.fat * g);
+  $('ef-carbs').value = round(efBase.carbs * g);
+}
+
+async function saveEditFood() {
+  const it = efItem;
+  if (!it) return;
+  const desc = $('ef-desc').value.trim();
+  if (!desc) { showStatus('Впиши описание', true); return; }
+  let grams = null;                                  // порционная по умолчанию
+  if (efBase) { const gv = Number($('ef-grams').value) || 0; grams = gv > 0 ? gv : null; }
+  const next = {
+    description: desc,
+    kcal: Math.round(Number($('ef-kcal').value) || 0),
+    protein: Number($('ef-protein').value) || 0,
+    fat: Number($('ef-fat').value) || 0,
+    carbs: Number($('ef-carbs').value) || 0,
+    meal_type: $('ef-meal').value,                   // '' = «по времени» (бэк примет как пусто)
+    grams,
+  };
+  // снапшот для отката + оптимистичное обновление
+  const prev = { description: it.description, kcal: it.kcal, protein: it.protein,
+    fat: it.fat, carbs: it.carbs, meal_type: it.meal_type, grams: it.grams };
+  Object.assign(it, next);
+  renderFoodList();                                  // пересчитает сумму/бюджет дня
+  showScreen('foodlog');
+  try {
+    const res = await api('update-food', { id: it.id, ...next });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showStatus('Сохранено ✓', false, 1500);
+  } catch (e) {
+    Object.assign(it, prev);                         // откат
+    renderFoodList();
+    showStatus('Не сохранилось: ' + e.message, true, 3500);
   }
 }
 
@@ -2174,6 +2254,10 @@ $('pp-search').addEventListener('input', (e) => renderPickList(e.target.value));
 $('lf-grams').addEventListener('input', lfUpdatePreview);
 $('lf-add').addEventListener('click', lfAdd);
 $('lf-cancel').addEventListener('click', () => showScreen(lfReturn));
+
+$('ef-grams').addEventListener('input', efUpdatePreview);
+$('ef-save').addEventListener('click', saveEditFood);
+$('ef-cancel').addEventListener('click', () => showScreen('foodlog'));
 
 // Статичные иконки/списки бренд-набором (DOM уже распарсен — main.js в конце body).
 initStaticUi();

@@ -719,6 +719,7 @@ function renderWorkout(d) {
   currentWorkout = { date: d.date, block_num: d.selected_block, label: d.label };
   currentExercises = d.exercises || [];
   renderWktBlocks(d);
+  renderBurnNote($('wkt-burn-note'), d.budget);   // «сожёг X → в лимит +Y» (если есть расход)
 
   // У нового юзера плана нет вообще — предлагаем создать первый блок.
   if (!d.blocks || !d.blocks.length) {
@@ -951,8 +952,8 @@ async function completeWorkout() {
     const res = await api('complete-workout', payload);
     if (res.ok === false) throw new Error(res.error || 'fail');
     tg?.HapticFeedback?.notificationOccurred?.('success');
-    showStatus(`Тренировка зафиксирована ✓ (+${res.kcal_burned || 0} ккал)`, false, 2000);
-    loadWorkout(currentWorkout.block_num);   // обновит статус кнопок (logged → деактив + «отменить»)
+    showStatus('Тренировка зафиксирована ✓', false, 2000);
+    loadWorkout(currentWorkout.block_num);   // обновит статус кнопок + строку «сожёг X → +Y»
   } catch (e) {
     showStatus('Не вышло: ' + e.message, true, 3000);
     btn.disabled = false;
@@ -1097,6 +1098,34 @@ function bumpWorkoutCount() {
   $('wkt-prog-sub').textContent = parts.join(' · ');
 }
 
+// === Пояснение «сожёг X → в лимит +Y» (тренировка/ходьба) ===
+// budget приходит с бэка (calc.budget_breakdown): burned — сколько сожжено активностью
+// всего за день, returned — сколько из этого реально вернулось в дневной лимит.
+function renderBurnNote(el, budget) {
+  if (!el) return;
+  const b = budget || {};
+  if (!b.burned || b.burned <= 0) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+  el.innerHTML = '';
+  const txt = document.createElement('span');
+  txt.innerHTML = `🔥 Сожжено сегодня ~${b.burned} ккал · в дневной лимит <b>+${b.returned}</b> `;
+  const why = document.createElement('button');
+  why.type = 'button';
+  why.className = 'why-link';
+  why.textContent = 'почему?';
+  why.addEventListener('click', () => showBurnWhy(b));
+  el.appendChild(txt);
+  el.appendChild(why);
+  el.classList.remove('hidden');
+}
+
+function showBurnWhy(b) {
+  // Рыж-тон, коротко (лимит showPopup ~256 символов).
+  const msg = `Сжёг много — красава! Но весь расход в тарелку не вернётся: из ~${b.burned} ккал в лимит ушло +${b.returned}. Часть уже в твоей норме, а сверху есть потолок — иначе будешь есть «под расход» и сольёшь дефицит. Держим курс, командир 🦊`;
+  if (tg?.showPopup) { try { tg.showPopup({ title: 'Почему не весь расход?', message: msg, buttons: [{ type: 'ok' }] }); return; } catch (e) {} }
+  if (tg?.showAlert) { try { tg.showAlert(msg); return; } catch (e) {} }
+  alert(msg);
+}
+
 // === Ходьба (раздел в трен-вкладке) ===
 let wktMode = 'train';   // train | walk
 let walkPace = 'brisk';
@@ -1119,6 +1148,7 @@ async function loadWalking() {
     $('walk-km').value = d.km || '';
     $('walk-kcal').textContent = `+${d.kcal_burned || 0} ккал`;
     $('walk-sub').textContent = `Всего ходьбы за день: ${d.day_total_kcal || 0} ккал`;
+    renderBurnNote($('walk-burn-note'), d.budget);   // «сожёг X → в лимит +Y»
     renderPacePills();
     updateWktDayNav();
   } catch (e) {

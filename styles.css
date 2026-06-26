@@ -123,6 +123,8 @@ html, body {
 /* ---- Текст-утилиты ---- */
 .muted { color: var(--text-hint); }
 .small { font-size: var(--fs-small); }
+/* мед-дисклеймер: сноска под рекомендованными числами */
+.disclaimer { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-hairline); line-height: 1.4; opacity: .85; }
 .tnum  { font-variant-numeric: tabular-nums; }
 /* линейная иконка в строке текста (вместо эмодзи) */
 .inline-ico { display: inline-flex; vertical-align: -2px; }

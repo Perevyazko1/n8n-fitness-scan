@@ -1057,6 +1057,8 @@ async function toggleExercise(ex, check, row) {
     if (res.ok === false) throw new Error(res.error || 'fail');
     ex.done = newDone;
     tg?.HapticFeedback?.impactOccurred?.('light');
+    recalcEstKcal();          // расход считается по ВЫПОЛНЕННЫМ — пересчитываем сразу
+    updateCompleteBtnLabel();
     bumpWorkoutCount();
   } catch (e) {
     row.classList.toggle('is-done', !newDone);   // откат
@@ -1065,6 +1067,21 @@ async function toggleExercise(ex, check, row) {
   } finally {
     check.disabled = false;
   }
+}
+
+// Расход тренировки = сумма ккал только по ВЫПОЛНЕННЫМ упражнениям.
+// 1:1 с серверным done_workout_stats (ex.kcal = kcal_override ?? kcal_auto, оба целые).
+function recalcEstKcal() {
+  currentEstKcal = currentExercises.reduce(
+    (s, e) => s + (e.done && e.kcal > 0 ? e.kcal : 0), 0);
+}
+
+// Обновить подпись на кнопке «Завершить» после тоггла (если она активна и видима).
+function updateCompleteBtnLabel() {
+  const complete = $('wkt-complete');
+  if (complete.disabled || complete.classList.contains('hidden')) return;
+  complete.textContent = currentEstKcal > 0
+    ? `Завершить · ~${currentEstKcal} ккал` : 'Завершить тренировку';
 }
 
 // Пересчитать N/M и бар в карточке прогресса без перезапроса.

@@ -712,7 +712,9 @@ function stepWktDay(delta) {
   const next = addDaysStr(wktViewDate, delta);
   if (delta > 0 && wktServerToday && next > wktServerToday) return;
   wktViewDate = next;
-  if (wktMode === 'walk') loadWalking(); else loadWorkout();
+  if (wktMode === 'walk') loadWalking();
+  else if (wktMode === 'sport') loadSport();
+  else loadWorkout();
 }
 
 function renderWorkout(d) {
@@ -841,10 +843,26 @@ function toggleWktEdit() {
   loadWorkout(currentWorkout.block_num);   // перерисуем тот же блок в новом режиме
 }
 
+const EX_SECTIONS = ['Разминка', 'Силовая', 'Кор', 'Кардио', 'Заминка'];
+
+// Выставить секцию в селект. Нестандартное (старое свободнотекстовое) значение —
+// например «Грудь» — сохраняем как временную опцию, чтобы при правке не подменить его.
+function setSectionSelect(val) {
+  const sel = $('exf-group');
+  const old = sel.querySelector('option[data-fallback]');
+  if (old) old.remove();
+  if (val && !EX_SECTIONS.includes(val)) {
+    const o = document.createElement('option');
+    o.value = val; o.textContent = val; o.dataset.fallback = '1';
+    sel.insertBefore(o, sel.firstChild);
+  }
+  sel.value = val || 'Силовая';
+}
+
 function openExForm(ex) {
   exEditing = ex || null;
   $('exf-title').textContent = ex ? 'Изменить упражнение' : 'Новое упражнение';
-  $('exf-group').value = ex?.group || '';
+  setSectionSelect(ex?.group || 'Силовая');
   $('exf-name').value = ex?.exercise || '';
   $('exf-sets').value = ex?.sets || '';
   $('exf-reps').value = ex?.reps || '';
@@ -1126,8 +1144,8 @@ function showBurnWhy(b) {
   alert(msg);
 }
 
-// === Ходьба (раздел в трен-вкладке) ===
-let wktMode = 'train';   // train | walk
+// === Ходьба / Спорт (разделы в трен-вкладке) ===
+let wktMode = 'train';   // train | walk | sport
 let walkPace = 'brisk';
 
 function setWktMode(mode) {
@@ -1135,7 +1153,9 @@ function setWktMode(mode) {
   document.querySelectorAll('[data-wmode]').forEach(b => b.classList.toggle('active', b.dataset.wmode === mode));
   $('wkt-train').classList.toggle('hidden', mode !== 'train');
   $('wkt-walk').classList.toggle('hidden', mode !== 'walk');
+  $('wkt-sport').classList.toggle('hidden', mode !== 'sport');
   if (mode === 'walk') { $('wkt-sub').textContent = ''; loadWalking(); }
+  else if (mode === 'sport') { $('wkt-sub').textContent = ''; loadSport(); }
   else loadWorkout();
 }
 
@@ -1179,6 +1199,112 @@ async function walkSave() {
     loadWalking();
   } catch (e) {
     showStatus('Не вышло: ' + e.message, true, 3000);
+  }
+}
+
+// === Спорт (активность вне зала: вид + минуты → нет-MET расход) ===
+let sportWeight = 76;        // вес из профиля — для живого превью ккал
+let sportActsLoaded = false; // справочник видов грузим один раз
+
+async function loadSport() {
+  try {
+    const d = await api('sport', wktViewDate ? { date: wktViewDate } : {});
+    if (!wktServerToday) wktServerToday = d.date;
+    if (!wktViewDate) wktViewDate = d.date;
+    sportWeight = d.weight_kg || 76;
+    if (!sportActsLoaded) { renderSportOptions(d.activities || []); sportActsLoaded = true; }
+    $('sport-total').textContent = `+${d.sum_kcal || 0} ккал`;
+    $('sport-sub').textContent = (d.items && d.items.length)
+      ? `Записей за день: ${d.items.length}` : 'За день пока пусто';
+    renderSportList(d.items || []);
+    renderBurnNote($('sport-burn-note'), d.budget);   // «сожёг X → в лимит +Y»
+    sportUpdatePreview();
+    updateWktDayNav();
+  } catch (e) {
+    showStatus('Ошибка: ' + e.message, true, 3000);
+  }
+}
+
+function renderSportOptions(acts) {
+  const sel = $('sport-activity');
+  sel.innerHTML = '';
+  for (const a of acts) {
+    const o = document.createElement('option');
+    o.value = a.key; o.textContent = a.label;
+    if (a.met != null) o.dataset.met = a.met;   // нет met → «Другое» (ручные ккал)
+    sel.appendChild(o);
+  }
+}
+
+function sportUpdatePreview() {
+  const sel = $('sport-activity');
+  const opt = sel.options[sel.selectedIndex];
+  const met = opt && opt.dataset.met ? Number(opt.dataset.met) : null;
+  const min = Number($('sport-min').value) || 0;
+  const manual = Number($('sport-kcal').value) || 0;
+  if (manual > 0) { $('sport-preview').textContent = `Расход: ${manual} ккал (вручную)`; return; }
+  if (met == null) { $('sport-preview').textContent = 'Для «Другое» впиши калории вручную.'; return; }
+  if (!min) { $('sport-preview').textContent = 'Впиши минуты — посчитаю расход.'; return; }
+  const kcal = Math.round(Math.max(met - 1, 0) * sportWeight * min / 60);
+  $('sport-preview').textContent = `Расход: ~${kcal} ккал за ${min} мин`;
+}
+
+function renderSportList(items) {
+  const box = $('sport-list');
+  box.innerHTML = '';
+  for (const it of items) {
+    const row = document.createElement('div');
+    row.className = 'food';
+    const main = document.createElement('div'); main.className = 'food-main';
+    const nm = document.createElement('div'); nm.className = 'food-desc'; nm.textContent = it.activity;
+    const sub = document.createElement('div'); sub.className = 'muted small';
+    sub.textContent = it.minutes ? `${it.minutes} мин` : '';
+    main.appendChild(nm); main.appendChild(sub);
+    const kcal = document.createElement('div'); kcal.className = 'food-kcal'; kcal.textContent = `+${it.kcal}`;
+    const del = document.createElement('button');
+    del.className = 'icon-btn'; del.setAttribute('aria-label', 'Удалить');
+    del.innerHTML = iconSvg('close', 18);
+    del.addEventListener('click', () => sportDelete(it));
+    row.appendChild(main); row.appendChild(kcal); row.appendChild(del);
+    box.appendChild(row);
+  }
+}
+
+async function sportSave() {
+  const activity = $('sport-activity').value;
+  const minutes = Number($('sport-min').value) || 0;
+  const kcalRaw = $('sport-kcal').value.trim();
+  const kcal = kcalRaw === '' ? null : Number(kcalRaw);
+  if (kcal == null && !minutes) { showStatus('Впиши минуты', true); return; }
+  try {
+    const res = await api('log-sport', {
+      date: wktViewDate || wktServerToday,
+      activity, minutes,
+      ...(kcal != null ? { kcal } : {}),
+    });
+    if (res.ok === false) {
+      showStatus(res.error === 'no_kcal' ? 'Для «Другое» впиши калории' : 'Не вышло', true, 2500);
+      return;
+    }
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showStatus(`Записано · +${res.kcal_burned} ккал ✓`, false, 1800);
+    $('sport-min').value = ''; $('sport-kcal').value = '';
+    loadSport();
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  }
+}
+
+async function sportDelete(it) {
+  const ok = await confirmDialog(`Удалить «${it.activity}»?`);
+  if (!ok) return;
+  try {
+    const res = await api('sport-delete', { id: it.id, date: wktViewDate || wktServerToday });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    loadSport();
+  } catch (e) {
+    showStatus('Не удалилось: ' + e.message, true, 3000);
   }
 }
 
@@ -2337,6 +2463,10 @@ $('bf-cancel').addEventListener('click', () => showScreen('workout'));
 document.querySelectorAll('[data-wmode]').forEach(b =>
   b.addEventListener('click', () => setWktMode(b.dataset.wmode)));
 $('walk-save').addEventListener('click', walkSave);
+$('sport-save').addEventListener('click', sportSave);
+$('sport-activity').addEventListener('change', sportUpdatePreview);
+$('sport-min').addEventListener('input', sportUpdatePreview);
+$('sport-kcal').addEventListener('input', sportUpdatePreview);
 $('food-prev').addEventListener('click', () => stepDay(-1));
 $('food-next').addEventListener('click', () => stepDay(1));
 document.querySelectorAll('#foodlog .seg-btn').forEach(b =>

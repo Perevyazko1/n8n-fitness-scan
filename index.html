@@ -9,8 +9,8 @@
 <title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=48" />
-<script src="ryzh-icons.js?v=48"></script>
+<link rel="stylesheet" href="styles.css?v=49" />
+<script src="ryzh-icons.js?v=49"></script>
 </head>
 <body>
 
@@ -184,6 +184,7 @@
     <div class="seg">
       <button id="wseg-train" class="seg-btn active" data-wmode="train">Тренировка</button>
       <button id="wseg-walk" class="seg-btn" data-wmode="walk">Ходьба</button>
+      <button id="wseg-sport" class="seg-btn" data-wmode="sport">Спорт</button>
     </div>
     <div class="daynav">
       <button id="wkt-prev" class="nav-btn" aria-label="Предыдущий день"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6 L8.5 12 L14.5 18"/></svg></button>
@@ -237,6 +238,25 @@
       <div class="blocks" id="walk-pace"></div>
       <button id="walk-save" class="primary">Записать ходьбу</button>
       <p id="walk-burn-note" class="burn-note hidden"></p>
+      <p class="muted small">Расход добавляется к дневному лимиту калорий — в разумных пределах (общий потолок не даст лимиту раздуться).</p>
+    </div>
+
+    <!-- режим: спорт (футбол / баскет / танцы и т.д.) -->
+    <div id="wkt-sport" class="hidden">
+      <div class="card stat">
+        <div class="stat-head"><span class="stat-label">Спорт за день</span><span id="sport-total" class="stat-big">+0 ккал</span></div>
+        <div class="muted small" id="sport-sub"></div>
+      </div>
+      <label>Вид активности</label>
+      <select id="sport-activity"></select>
+      <div class="grid">
+        <div><label>Сколько минут</label><input id="sport-min" type="number" min="0" step="1" placeholder="например: 60" /></div>
+        <div><label>Калории · необязательно</label><input id="sport-kcal" type="number" min="0" step="1" placeholder="авто" /></div>
+      </div>
+      <p id="sport-preview" class="computed"></p>
+      <button id="sport-save" class="primary">Записать активность</button>
+      <div id="sport-list"></div>
+      <p id="sport-burn-note" class="burn-note hidden"></p>
       <p class="muted small">Расход добавляется к дневному лимиту калорий — в разумных пределах (общий потолок не даст лимиту раздуться).</p>
     </div>
   </div>
@@ -440,8 +460,14 @@
 <div id="exform" class="screen">
   <div class="card">
     <h2 id="exf-title">Упражнение</h2>
-    <label>Секция (Разминка / Силовая / Кор / Кардио / Заминка)</label>
-    <input id="exf-group" placeholder="например: Силовая" />
+    <label>Секция</label>
+    <select id="exf-group">
+      <option value="Разминка">Разминка</option>
+      <option value="Силовая">Силовая</option>
+      <option value="Кор">Кор</option>
+      <option value="Кардио">Кардио</option>
+      <option value="Заминка">Заминка</option>
+    </select>
     <label>Упражнение</label>
     <input id="exf-name" placeholder="например: Жим лёжа" />
     <div class="grid">
@@ -653,6 +679,6 @@
   <button class="tab" data-tab="scanner"><span class="tab-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5 V6.4 A1.4 1.4 0 0 1 5.4 5 H7.6"/><path d="M20 8.5 V6.4 A1.4 1.4 0 0 0 18.6 5 H16.4"/><path d="M4 15.5 V17.6 A1.4 1.4 0 0 0 5.4 19 H7.6"/><path d="M20 15.5 V17.6 A1.4 1.4 0 0 1 18.6 19 H16.4"/><path d="M8.8 9 V15"/><path d="M12 9 V15"/><path d="M15.2 9 V15"/></svg></span>Сканер</button>
 </nav>
 
-<script src="main.js?v=48"></script>
+<script src="main.js?v=49"></script>
 </body>
 </html>

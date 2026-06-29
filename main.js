@@ -1287,6 +1287,10 @@ async function prodSave() {
 }
 
 // --- Добавить еду: сперва поиск в базе (OFF), ручной ввод — fallback ---
+// Ручной ввод: по умолчанию режим «на 100г + граммы» (запись пересчитываемая).
+// Переключатель «знаю только итог» возвращает старое поведение (итоговые КБЖУ, grams опц.).
+let mfPer100 = true;
+
 function openManualFood() {
   ['mf-desc', 'mf-kcal', 'mf-grams', 'mf-protein', 'mf-fat', 'mf-carbs'].forEach(id => $(id).value = '');
   $('mf-meal').value = '';
@@ -1295,8 +1299,37 @@ function openManualFood() {
   $('mf-manual').classList.add('hidden');
   $('mf-manual-toggle').classList.remove('hidden');
   pendingMeal = null;
+  mfPer100 = true;
+  mfApplyMode();
   showScreen('manualfood');
   setTimeout(() => $('mf-search').focus(), 100);
+}
+
+// Переключить подписи/превью под текущий режим ручного ввода.
+function mfApplyMode() {
+  $('mf-l-kcal').textContent    = mfPer100 ? 'ккал / 100г'      : 'ккал';
+  $('mf-l-protein').textContent = mfPer100 ? 'белок / 100г'     : 'белок, г';
+  $('mf-l-fat').textContent     = mfPer100 ? 'жир / 100г'       : 'жир, г';
+  $('mf-l-carbs').textContent   = mfPer100 ? 'углеводы / 100г'  : 'углеводы, г';
+  $('mf-l-grams').textContent   = mfPer100 ? 'сколько съел, г'  : 'граммы (необяз.)';
+  $('mf-mode-toggle').textContent = mfPer100 ? 'знаю только итог' : 'ввести на 100г';
+  $('mf-preview').classList.toggle('hidden', !mfPer100);
+  mfUpdatePreview();
+}
+
+function toggleMfMode() {
+  mfPer100 = !mfPer100;
+  mfApplyMode();
+}
+
+// Живой пересчёт итога из «на 100г» × граммы (только в режиме per-100g).
+function mfUpdatePreview() {
+  if (!mfPer100) { $('mf-preview').textContent = ''; return; }
+  const g = Number($('mf-grams').value) || 0;
+  if (!g) { $('mf-preview').textContent = 'Впиши граммы — посчитаю итог.'; return; }
+  const m = v => round((Number($(v).value) || 0) * g / 100);
+  $('mf-preview').textContent =
+    `Итог ${g}г: ${m('mf-kcal')} ккал · Б${m('mf-protein')} · Ж${m('mf-fat')} · У${m('mf-carbs')}`;
 }
 
 // Поиск по названию в Open Food Facts (то же API, что и для штрихкодов).
@@ -1353,16 +1386,33 @@ async function manualFoodSave() {
   if (!desc) { showStatus('Впиши, что съел', true); return; }
   if (!kcal) { showStatus('Впиши ккал', true); return; }
   const meal = $('mf-meal').value;
-  const grams = Number($('mf-grams').value) || 0;   // необязательно: если задано — запись весовая
-  try {
-    const res = await api('repeat-food', {
-      date: viewDate || serverToday,
+  const grams = Number($('mf-grams').value) || 0;
+
+  let payload;
+  if (mfPer100) {
+    // «на 100г» + граммы → считаем итог, пишем grams (запись пересчитываемая)
+    if (!grams) { showStatus('Впиши граммы', true); return; }
+    const m = v => round((Number($(v).value) || 0) * grams / 100);
+    payload = {
+      description: desc,
+      kcal: m('mf-kcal'), protein: m('mf-protein'), fat: m('mf-fat'), carbs: m('mf-carbs'),
+      grams,
+    };
+  } else {
+    // «знаю только итог» → итоговые КБЖУ, граммы опц.
+    payload = {
       description: desc,
       kcal,
       protein: Number($('mf-protein').value) || 0,
       fat: Number($('mf-fat').value) || 0,
       carbs: Number($('mf-carbs').value) || 0,
       ...(grams > 0 ? { grams } : {}),
+    };
+  }
+  try {
+    const res = await api('repeat-food', {
+      date: viewDate || serverToday,
+      ...payload,
       ...(meal ? { meal_type: meal } : {}),
     });
     if (res.ok === false) throw new Error(res.error || 'fail');
@@ -1469,8 +1519,10 @@ function renderPickList(q) {
 }
 
 let lfReturn = 'pickproduct';   // куда вернуться по «Назад» из грамовки
+let lfForceToday = false;       // повтор: добавляем в сегодня независимо от открытого дня
 function openLogFood(p, ret) {
   lfReturn = ret || 'pickproduct';
+  lfForceToday = false;   // обычный путь добавления; повтор выставит флаг сам
   lfProduct = p;
   $('lf-name').textContent = p.name;
   $('lf-per100').textContent =
@@ -1496,7 +1548,7 @@ async function lfAdd() {
   const m = v => round((Number(v) || 0) * g / 100);
   try {
     const res = await api('repeat-food', {
-      date: viewDate || serverToday,
+      date: lfForceToday ? serverToday : (viewDate || serverToday),  // повтор → всегда сегодня
       description: `${p.name} ${g}г`,
       kcal: m(p.kcal_per_100g), protein: m(p.protein_per_100g),
       fat: m(p.fat_per_100g), carbs: m(p.carbs_per_100g),
@@ -1505,6 +1557,7 @@ async function lfAdd() {
     });
     if (res.ok === false) throw new Error(res.error || 'fail');
     pendingMeal = null;
+    lfForceToday = false;
     tg?.HapticFeedback?.notificationOccurred?.('success');
     showStatus('Добавлено в дневник ✓', false, 1500);
     goTab('foodlog');
@@ -1617,7 +1670,7 @@ function toggleRowMenu(it, btn) {
   const actions = [
     { ico: 'edit',   label: 'Изменить',          fn: () => openEditFood(it) },
     { ico: 'meal',   label: 'Перенести в приём', fn: () => openMealPicker(it, btn) },
-    { ico: 'repeat', label: 'Повторить сегодня',  fn: () => repeatFood(it) },
+    { ico: 'repeat', label: 'Повторить сегодня',  fn: () => openRepeatFood(it) },
     { ico: 'plus',   label: 'В мои продукты',     fn: () => openAddProduct(it) },
     { ico: 'close',  label: 'Удалить', danger: true, fn: () => deleteFood(it) },
   ];
@@ -1783,6 +1836,31 @@ function buildFoodRow(it) {
   row.appendChild(kcal);
   row.appendChild(more);
   return row;
+}
+
+// Повтор приёма пищи в сегодня. Весовая запись (есть grams) → открываем граммовку
+// с предзаполнением, чтобы можно было уменьшить порцию. Порционная (grams нет) →
+// добавляем как есть (пересчитывать не от чего).
+function openRepeatFood(it) {
+  const g0 = Number(it.grams) || 0;
+  if (g0 > 0) {
+    const per100 = v => (Number(v) || 0) / g0 * 100;
+    const name = String(it.description || '').replace(/\s*\d+(?:[.,]\d+)?\s*г\b/, '').trim()
+      || (it.description || 'запись');
+    const p = {
+      name,
+      kcal_per_100g: round(per100(it.kcal)),
+      protein_per_100g: round(per100(it.protein)),
+      fat_per_100g: round(per100(it.fat)),
+      carbs_per_100g: round(per100(it.carbs)),
+      default_serving_g: round(g0, 0),
+    };
+    pendingMeal = it.meal_type || null;
+    openLogFood(p, 'foodlog');
+    lfForceToday = true;   // повтор всегда в сегодня, даже если открыт прошлый день
+    return;
+  }
+  repeatFood(it);   // граммовки нет — повтор как есть
 }
 
 async function repeatFood(it) {
@@ -2274,6 +2352,9 @@ $('pf-cancel').addEventListener('click', () => showScreen('foodlog'));
 $('mf-save').addEventListener('click', manualFoodSave);
 $('mf-cancel').addEventListener('click', () => showScreen('foodlog'));
 $('mf-manual-toggle').addEventListener('click', () => revealMfManual());
+$('mf-mode-toggle').addEventListener('click', toggleMfMode);
+['mf-kcal', 'mf-protein', 'mf-fat', 'mf-carbs', 'mf-grams'].forEach(id =>
+  $(id).addEventListener('input', mfUpdatePreview));
 $('mf-search').addEventListener('input', (e) => {
   clearTimeout(_mfDebounce);
   const v = e.target.value;

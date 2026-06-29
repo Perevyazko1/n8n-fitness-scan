@@ -108,6 +108,62 @@ JSON. Это специально: при будущем переезде Sheets
 > Легенда: `[ ]` не начато · `[~]` код готов локально, НЕ задеплоен · `[x]` готово и задеплоено.
 > Обновлять этот раздел в КОНЦЕ каждой сессии.
 
+> **Сессия 2026-06-29 — уменьшение порции при повторе еды + grams на всех путях (КОД ГОТОВ, не задеплоен):**
+> Цель: повторяя приём пищи, можно уменьшить порцию. Для пересчёта у записи нужны `grams`; per-100g
+> считаем на лету (`итог/grams×100`, решение — Вариант 1, без новых полей в БД). Главный пробел был:
+> голос (бот) и старый повтор теряли `grams`. **Django НЕ менялся** — `grams` уже принимается/хранится/
+> отдаётся (миграция `0010`), колонка `fitness_foodlog.grams` уже есть → бот пишет в готовую колонку,
+> новой миграции НЕТ.
+> • **Фронт (`?v=47 → 48`):** (1) Повтор: меню строки «Повторить» → `openRepeatFood(it)` — у весовой
+>   записи (`grams>0`) реконструирует «продукт» (per-100g из `итог/g0`) и открывает экран граммовки
+>   `#logfood` с предзаполнением исходных граммов; меняешь граммы → КБЖУ вживую → «Добавить». Флаг
+>   `lfForceToday` в `lfAdd` шлёт в сегодня независимо от открытого дня. Запись без `grams` — повтор как
+>   есть (старый `repeatFood`, оставлен фолбэком). (2) Ручной ввод: основной режим «КБЖУ на 100г +
+>   граммы» (флаг `mfPer100`, `mfApplyMode`/`mfUpdatePreview` — живой итог) + переключатель «знаю только
+>   итог» (`#mf-mode-toggle`) → фолбэк к итоговым КБЖУ (`grams=null`). `index.html` `#mf-manual`
+>   перелейблен + `#mf-preview`; CSS `.link-btn`. Поиск/штрихкод/правка уже слали `grams` — не трогали.
+> • **n8n (`Fitness_Bot_Phase_3_PG_v2.json`):** Food Specialist промпт — в `data` добавлено поле `grams`
+>   («указывай ВСЕГДА»); нода `Append food_log` — INSERT/SELECT/JSON.stringify дополнены колонкой `grams`
+>   (`NULLIF(d->>'grams','')::numeric`, NULL если нет). `Parse + Enrich` не трогали (ключ `grams` проходит
+>   насквозь). Старый `_PG.json` не дублировали (активен v2).
+> **Юзеру для деплоя:** (1) фронт — push (`?v=48`); (2) бот — переимпортировать `Fitness_Bot_Phase_3_PG_v2.json`
+>   в n8n, проверить кред Postgres, активировать. Миграций/рестарта Django НЕ требуется.
+
+> **Сессия 2026-06-27 — заготовка платежей Platega под подписку (КОД ГОТОВ, не задеплоен):**
+> Цель: сейчас доступ к AI-боту по флагу `TgUser.has_bot_access` (владелец вручную). Сделана
+> backend-ЗАГОТОВКА оплаты подписки через Platega. Используем МЕТОД-эндпоинт
+> `POST {base}/transaction/process` с `paymentMethod` (по умолчанию СБП=2), но с заделом под
+> остальные методы — `platega.PAYMENT_METHODS` (3=ЕРИП,11=карта,12=межд.,13=крипта) + `resolve_method`.
+> Способ берётся из payload (`method`: алиас/код) или дефолт `SUBSCRIPTION_PAYMENT_METHOD`. Ссылка
+> на оплату — `redirect` (метод-эндпоинт) или `url` (методless), извлекается `platega.pay_link`.
+> Путь процесса вынесен в `PLATEGA_PROCESS_PATH` (env, на случай расхождений host/пути). Поле
+> `Payment.method` хранит код. Пока в .env нет `PLATEGA_MERCHANT_ID/SECRET` — платежи ВЫКЛЮЧЕНЫ,
+> всё работает по флагу (как было).
+> Всё в Django (`../n8n-fitness/backend/`):
+> • **Конфиг** (`config/settings.py`): `PLATEGA_API_BASE/MERCHANT_ID/SECRET/CALLBACK_SECRET`,
+>   `PUBLIC_BASE_URL`, `SUBSCRIPTION_PRICE_RUB`(299)/`SUBSCRIPTION_DAYS`(30). Также `.env.example` +
+>   `docker-compose.yml` (api env).
+> • **Модели** (`models.py` + миграция `0011_payments`): `TgUser.subscription_until` (DateTime null)
+>   + `@property subscription_active`; новая модель `Payment` (user, transaction_id, amount, currency,
+>   status, plan, payload, pay_url, created/updated).
+> • **Клиент** `fitness/platega.py`: `configured()` + `create_transaction(...)` на `urllib` (без зависимости
+>   requests, как OFF-прокси). Тело по cURL-примеру доки; headers `X-MerchantId/X-Secret`.
+> • **Вьюхи** (`views.py`): `subscription_status` (active/until/configured/price — для paywall),
+>   `subscription_create` (создаёт Payment PENDING → Platega → отдаёт `url`; если не настроено →
+>   `payments_disabled` 503, фронт остаётся на «Скоро»), `payments_platega_callback` (сервер-сервер:
+>   обновляет Payment, при успехе продлевает `subscription_until` на N дней и ставит `has_bot_access=True`,
+>   идемпотентно). Роуты в `urls.py`: `subscription/status`, `subscription/create`, `payments/platega/callback`.
+> • **Middleware**: ветка `/api/payments/*` — без initData, авторизация общим секретом `X-Platega-Secret`
+>   (TODO: заменить на подпись Platega). `subscription/*` идут под обычной initData-авторизацией.
+> • **Админка**: зарегистрирована `Payment`; в `TgUser` показан `subscription_until`.
+> TODO (уточнить у менеджера Platega, помечено в коде): реальный host API; amount в рублях/копейках;
+> формат подписи колбэка; статусы успеха (сейчас `CONFIRMED/SUCCESS/PAID/COMPLETED`).
+> **Юзеру для деплоя:** `deploy.sh` (применит миграцию `0011`) + рестарт `fitness-api`. Платежи
+> останутся ВЫКЛЮЧЕНЫ, пока не зададите `PLATEGA_*` в `.env`. Фронт пока НЕ трогали (paywall `#ryzhai`
+> остаётся как есть) — когда включите платежи, кнопку «оформить» завести на `api('subscription/create')`
+> и открыть `res.url`; в Platega прописать callback-URL `https://n8n-fitness.ru/api/payments/platega/callback`
+> с заголовком `X-Platega-Secret`.
+
 > **Сессия 2026-06-26(3) — пояснение «сожёг X → в лимит +Y» (КОД ГОТОВ, не задеплоен):**
 > Проблема UX: при завершении тренировки/ходьбы тост показывал сырой расход (`+X ккал`), будто
 > все X ушли в дневной лимит. На деле возврат скейлится по цели и режется потолком ×1.4 (модель

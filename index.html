@@ -9,8 +9,8 @@
 <title>Fitness</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=47" />
-<script src="ryzh-icons.js?v=47"></script>
+<link rel="stylesheet" href="styles.css?v=48" />
+<script src="ryzh-icons.js?v=48"></script>
 </head>
 <body>
 
@@ -412,9 +412,10 @@
       <h2>Запись вручную</h2>
       <label>Что съел</label>
       <input id="mf-desc" placeholder="например: борщ, тарелка" />
+      <button id="mf-mode-toggle" type="button" class="link-btn">знаю только итог</button>
       <div class="grid">
-        <div><label>ккал</label><input id="mf-kcal" type="number" min="0" step="1" /></div>
-        <div><label>граммы (необяз.)</label><input id="mf-grams" type="number" min="0" step="1" placeholder="вес порции" /></div>
+        <div><label id="mf-l-kcal">ккал / 100г</label><input id="mf-kcal" type="number" min="0" step="1" /></div>
+        <div><label id="mf-l-grams">сколько съел, г</label><input id="mf-grams" type="number" min="0" step="1" placeholder="вес порции" /></div>
         <div><label>приём пищи</label>
           <select id="mf-meal">
             <option value="">по времени</option>
@@ -423,10 +424,11 @@
             <option value="перекус">Перекус</option>
             <option value="ужин">Ужин</option>
           </select></div>
-        <div><label>белок, г</label><input id="mf-protein" type="number" min="0" step="0.1" /></div>
-        <div><label>жир, г</label><input id="mf-fat" type="number" min="0" step="0.1" /></div>
-        <div><label>углеводы, г</label><input id="mf-carbs" type="number" min="0" step="0.1" /></div>
+        <div><label id="mf-l-protein">белок / 100г</label><input id="mf-protein" type="number" min="0" step="0.1" /></div>
+        <div><label id="mf-l-fat">жир / 100г</label><input id="mf-fat" type="number" min="0" step="0.1" /></div>
+        <div><label id="mf-l-carbs">углеводы / 100г</label><input id="mf-carbs" type="number" min="0" step="0.1" /></div>
       </div>
+      <p id="mf-preview" class="computed"></p>
       <button id="mf-save" class="primary">Добавить в дневник</button>
     </div>
 
@@ -651,6 +653,6 @@
   <button class="tab" data-tab="scanner"><span class="tab-ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5 V6.4 A1.4 1.4 0 0 1 5.4 5 H7.6"/><path d="M20 8.5 V6.4 A1.4 1.4 0 0 0 18.6 5 H16.4"/><path d="M4 15.5 V17.6 A1.4 1.4 0 0 0 5.4 19 H7.6"/><path d="M20 15.5 V17.6 A1.4 1.4 0 0 1 18.6 19 H16.4"/><path d="M8.8 9 V15"/><path d="M12 9 V15"/><path d="M15.2 9 V15"/></svg></span>Сканер</button>
 </nav>
 
-<script src="main.js?v=47"></script>
+<script src="main.js?v=48"></script>
 </body>
 </html>

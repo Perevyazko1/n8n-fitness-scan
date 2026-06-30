@@ -125,6 +125,45 @@ html, body {
 .small { font-size: var(--fs-small); }
 /* мед-дисклеймер: сноска под рекомендованными числами */
 .disclaimer { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-hairline); line-height: 1.4; opacity: .85; }
+
+/* «?» у карточки калорий — открывает разбор модели лимита */
+.kcal-label { display: flex; align-items: center; gap: 6px; }
+.help-btn { width: 18px; height: 18px; flex: 0 0 18px; padding: 0; border: none; border-radius: 50%;
+  background: var(--surface-chip); color: var(--text-secondary); font-size: 12px; font-weight: 700;
+  line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.help-btn:active { transform: scale(0.9); }
+
+/* раскрываемая инфо-секция «Как считается дневной лимит» в настройках */
+.limit-info { margin: 4px 0 6px; }
+.limit-info summary { cursor: pointer; font-weight: 600; padding: 8px 0; color: var(--accent); list-style: none; }
+.limit-info summary::-webkit-details-marker { display: none; }
+.limit-info summary::before { content: '▸ '; }
+.limit-info[open] summary::before { content: '▾ '; }
+.info-body p { margin: 0 0 8px; line-height: 1.45; font-size: var(--fs-small); }
+
+/* универсальный инфо-попап */
+.modal-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.hidden { display: none; }
+.modal-card { background: var(--surface-card); color: var(--text-primary); border-radius: var(--radius);
+  box-shadow: var(--shadow-card); padding: 20px; width: 100%; max-width: 420px; max-height: 80vh; overflow-y: auto; }
+.modal-card h3 { margin: 0 0 12px; font-size: 18px; }
+.modal-card .primary { margin-top: 8px; }
+
+/* === Экран «Прогресс» === */
+/* столбики недельного дефицита */
+.wk-bars { display: flex; align-items: flex-end; gap: 6px; height: 64px; margin: 12px 0 4px; }
+.wk-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; }
+.wk-bar { width: 100%; max-width: 26px; min-height: 4px; border-radius: 4px 4px 0 0; background: var(--surface-track); }
+.wk-bar.good { background: var(--success); }
+.wk-bar.bad { background: var(--danger); }
+.wk-bar.empty { background: var(--surface-track); opacity: .45; }
+.wk-bar-lab { font-size: 10px; color: var(--text-secondary); }
+/* линейные графики веса / % жира */
+.chart { width: 100%; height: 120px; display: block; }
+.chart-empty { padding: 16px 0; text-align: center; }
+.chart-val { fill: var(--text-primary); font-size: 12px; font-weight: 600; }
+.chart-ax { fill: var(--text-secondary); font-size: 10px; }
 /* пояснение «сожёг X → в лимит +Y» под кнопкой завершения / записи ходьбы */
 .burn-note { margin: 8px 0 0; font-size: var(--fs-small); color: var(--text-hint); line-height: 1.45; }
 .burn-note b { color: var(--text-primary); }

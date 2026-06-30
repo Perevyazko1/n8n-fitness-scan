@@ -51,6 +51,7 @@ const screens = {
   prodform: $('prodform'), manualfood: $('manualfood'),
   blockform: $('blockform'),
   settings: $('settings'), reggate: $('reggate'), ryzhai: $('ryzhai'), docview: $('docview'),
+  progress: $('progress'),
 };
 
 function showScreen(name) {
@@ -355,6 +356,31 @@ function renderDashboard(d) {
   setMacro('protein', d.protein, 'г');
   setMacro('fat', d.fat, 'г');
   setMacro('carbs', d.carbs, 'г');
+
+  // --- Карточка недельного дефицита ---
+  renderWeeklyCard(d.weekly);
+}
+
+// Goal-aware подпись недельного баланса. lose: «+» = дефицит (хорошо); gain: «−» = профицит
+// (хорошо); maintain: ближе к нулю — лучше. total = Σ(цель−съедено) по залогированным дням.
+function weeklyWord(goal) {
+  if (goal === 'gain') return 'профицит';
+  if (goal === 'maintain') return 'баланс';
+  return 'дефицит';
+}
+
+function renderWeeklyCard(wk) {
+  if (!wk) return;
+  const total = Math.round(wk.total || 0);
+  const word = weeklyWord(wk.goal);
+  $('weekly-title').textContent = `За неделю · ${word}`;
+  if (!wk.logged_days) {
+    $('weekly-sub').textContent = 'Нет залогированных дней за неделю';
+    return;
+  }
+  const sign = total > 0 ? '+' : '';
+  $('weekly-sub').textContent =
+    `${sign}${total} ккал за ${wk.logged_days} ${pluralDays(wk.logged_days)} · ~${wk.avg > 0 ? '+' : ''}${wk.avg}/день`;
 }
 
 function setMacro(key, m, unit) {
@@ -1136,12 +1162,177 @@ function renderBurnNote(el, budget) {
   el.classList.remove('hidden');
 }
 
+// Единый текст «как считается дневной лимит» — для инфо-секции в настройках,
+// «?» у карточки калорий и (по смыслу) для бота. Объясняет, почему нет двойного
+// счёта активности: «бытовая активность» в плане ≠ залогированные тренировки/спорт.
+const LIMIT_INFO_HTML = `
+  <p><b>Дневной лимит калорий складывается так:</b></p>
+  <p>1. <b>Обмен веществ</b> — сколько тело тратит в покое.</p>
+  <p>2. <b>+ бытовая активность</b> — повседневное движение <b>без зала</b> (поле «Активность · без тренировок»).</p>
+  <p>3. <b>× твоя цель</b> — для похудения лимит ниже, для набора выше.</p>
+  <p>Это база на день <b>без спорта</b>.</p>
+  <p><b>Тренировки, ходьбу и спорт мы не закладываем заранее</b> — они добавляются к лимиту <b>сверху и по факту</b>, когда ты их залогируешь. Поэтому одна и та же активность не считается дважды: «бытовая» и «спорт» — это разное.</p>
+  <p>Чтобы лимит не раздувался, у добавки есть <b>потолок</b>, а при похудении в лимит возвращается лишь <b>часть</b> сожжённого.</p>
+`;
+
+function fillLimitInfo() {
+  const el = $('limit-info-body');
+  if (el && !el.dataset.filled) { el.innerHTML = LIMIT_INFO_HTML; el.dataset.filled = '1'; }
+}
+
+function openInfoModal(title, html) {
+  $('info-modal-title').textContent = title;
+  $('info-modal-body').innerHTML = html;
+  $('info-modal').classList.remove('hidden');
+}
+function closeInfoModal() { $('info-modal').classList.add('hidden'); }
+function openLimitInfo() { openInfoModal('Как считается дневной лимит', LIMIT_INFO_HTML); }
+
 function showBurnWhy(b) {
   // Рыж-тон, коротко (лимит showPopup ~256 символов).
   const msg = `Сжёг много — красава! Но весь расход в тарелку не вернётся: из ~${b.burned} ккал в лимит ушло +${b.returned}. Часть уже в твоей норме, а сверху есть потолок — иначе будешь есть «под расход» и сольёшь дефицит. Держим курс, командир 🦊`;
   if (tg?.showPopup) { try { tg.showPopup({ title: 'Почему не весь расход?', message: msg, buttons: [{ type: 'ok' }] }); return; } catch (e) {} }
   if (tg?.showAlert) { try { tg.showAlert(msg); return; } catch (e) {} }
   alert(msg);
+}
+
+// === Экран «Прогресс» (динамика: дефицит за неделю, вес, % жира) ===
+function openProgress() {
+  showScreen('progress');
+  loadProgress();
+}
+
+async function loadProgress() {
+  $('prog-loading').classList.remove('hidden');
+  $('prog-content').classList.add('hidden');
+  try {
+    const d = await api('progress');
+    // показываем контент ДО отрисовки графиков — иначе clientWidth=0 (display:none) и SVG не масштабируется
+    $('prog-loading').classList.add('hidden');
+    $('prog-content').classList.remove('hidden');
+    renderWeeklyDetail(d.weekly);
+    renderLineChart($('prog-weight-chart'), d.weight, $('prog-weight-empty'), { unit: 'кг', dp: 1 });
+    renderLineChart($('prog-fat-chart'), d.body_fat, $('prog-fat-empty'), { unit: '%', dp: 1 });
+    renderMeasures(d.measurements);
+    if (d.current_weight != null && !$('prog-weight').value) $('prog-weight').value = round(d.current_weight, 1);
+  } catch (e) {
+    $('prog-loading').textContent = 'Не удалось загрузить. ' + e.message;
+  }
+}
+
+// Обхваты тела: ключ ↔ подпись (порядок отображения). Совпадает с BODY_MEASURES на бэке.
+const PROG_MEASURES = [
+  ['waist', 'Талия'], ['chest', 'Грудь'], ['hips', 'Бёдра'], ['biceps', 'Бицепс'], ['thigh', 'Бедро'],
+];
+
+// Графики обхватов рисуем только для тех, где ≥2 точек (чтобы не плодить пустые секции).
+function renderMeasures(meas) {
+  const box = $('prog-measures');
+  box.innerHTML = '';
+  if (!meas) return;
+  for (const [key, label] of PROG_MEASURES) {
+    const pts = meas[key] || [];
+    if (pts.length < 2) continue;
+    const head = document.createElement('div');
+    head.className = 'sec-head'; head.textContent = `${label}, см`;
+    const card = document.createElement('div'); card.className = 'card stat';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.classList.add('chart');
+    card.appendChild(svg);
+    box.appendChild(head); box.appendChild(card);
+    renderLineChart(svg, pts, null, { unit: '', dp: 1 });
+  }
+}
+
+function renderWeeklyDetail(wk) {
+  if (!wk) return;
+  const total = Math.round(wk.total || 0);
+  const word = weeklyWord(wk.goal);
+  $('prog-wk-label').textContent = `За 7 дней · ${word}`;
+  $('prog-wk-total').textContent = `${total > 0 ? '+' : ''}${total} ккал`;
+  $('prog-wk-sub').textContent = wk.logged_days
+    ? `Учтено ${wk.logged_days} ${pluralDays(wk.logged_days)} (с логом еды) · ~${wk.avg > 0 ? '+' : ''}${wk.avg}/день. Серым — дни без записей.`
+    : 'За неделю нет дней с логом еды.';
+  renderWeekBars($('prog-wk-bars'), wk.per_day || [], wk.goal);
+}
+
+// Столбики дефицита по дням. Хорошее направление (по цели) — акцентный цвет, плохое — приглушённый,
+// незалогированные дни — серые. Высота ∝ |дефицит| относительно максимума за неделю.
+function renderWeekBars(box, days, goal) {
+  box.innerHTML = '';
+  const maxAbs = Math.max(1, ...days.filter(x => x.logged).map(x => Math.abs(x.deficit)));
+  const goodSign = goal === 'gain' ? -1 : 1;   // gain: профицит (deficit<0) хорошо; иначе дефицит>0 хорошо
+  for (const x of days) {
+    const col = document.createElement('div');
+    col.className = 'wk-bar-col';
+    const bar = document.createElement('div');
+    bar.className = 'wk-bar' + (!x.logged ? ' empty' : (Math.sign(x.deficit) === goodSign ? ' good' : ' bad'));
+    bar.style.height = x.logged ? Math.max(4, Math.round(Math.abs(x.deficit) / maxAbs * 56)) + 'px' : '4px';
+    bar.title = x.logged ? `${x.date}: ${x.deficit > 0 ? '+' : ''}${x.deficit} ккал` : `${x.date}: нет лога`;
+    const lab = document.createElement('div');
+    lab.className = 'wk-bar-lab';
+    lab.textContent = (x.date || '').slice(8, 10);   // день месяца
+    col.appendChild(bar); col.appendChild(lab);
+    box.appendChild(col);
+  }
+}
+
+// Лёгкий линейный график без библиотек. Считаем в реальных px (экран уже видим → clientWidth валиден),
+// чтобы линия/текст были чёткими. points: [{date, value}]. emptyEl — что показать при <2 точках.
+function renderLineChart(svg, points, emptyEl, opts = {}) {
+  points = (points || []).filter(p => p.value != null);
+  const ok = points.length >= 2;
+  if (emptyEl) emptyEl.classList.toggle('hidden', ok);
+  svg.classList.toggle('hidden', !ok);
+  if (!ok) { svg.innerHTML = ''; return; }
+  const w = svg.clientWidth || 320, h = 120, padX = 10, padTop = 16, padBot = 22;
+  const xs = points.map((_, i) => padX + i * (w - 2 * padX) / (points.length - 1));
+  const vals = points.map(p => p.value);
+  let min = Math.min(...vals), max = Math.max(...vals);
+  if (min === max) { min -= 1; max += 1; }
+  const y = v => padTop + (max - v) / (max - min) * (h - padTop - padBot);
+  const dp = opts.dp ?? 1, unit = opts.unit || '';
+  const poly = points.map((p, i) => `${xs[i].toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
+  const last = points[points.length - 1];
+  const dotX = xs[xs.length - 1], dotY = y(last.value);
+  const fmtDate = s => (s || '').slice(5).replace('-', '.');   // MM.DD
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.innerHTML = `
+    <polyline points="${poly}" fill="none" stroke="var(--accent)" stroke-width="2"
+      stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${dotX.toFixed(1)}" cy="${dotY.toFixed(1)}" r="3.5" fill="var(--accent)"/>
+    <text x="${dotX.toFixed(1)}" y="${Math.max(11, dotY - 8).toFixed(1)}" text-anchor="end"
+      class="chart-val">${round(last.value, dp)}${unit}</text>
+    <text x="${padX}" y="${h - 6}" class="chart-ax">${fmtDate(points[0].date)}</text>
+    <text x="${w - padX}" y="${h - 6}" text-anchor="end" class="chart-ax">${fmtDate(last.date)}</text>`;
+}
+
+async function bodyLogSave() {
+  const weight = Number($('prog-weight').value) || 0;
+  const bf = Number($('prog-fat').value) || 0;
+  const meas = {};
+  for (const [key] of PROG_MEASURES) {
+    const v = Number($('prog-' + key).value) || 0;
+    if (v) meas[key] = v;
+  }
+  if (!weight && !bf && !Object.keys(meas).length) {
+    showStatus('Впиши вес, % жира или обхват', true); return;
+  }
+  try {
+    const res = await api('log-body', {
+      ...(weight ? { weight } : {}),
+      ...(bf ? { body_fat_pct: bf } : {}),
+      ...meas,
+    });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showStatus('Записано ✓', false, 1500);
+    $('prog-fat').value = '';
+    for (const [key] of PROG_MEASURES) $('prog-' + key).value = '';
+    loadProgress();
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  }
 }
 
 // === Ходьба / Спорт (разделы в трен-вкладке) ===
@@ -2410,7 +2601,14 @@ function _buildManualPayload(name, kcal, protein, fat, carbs, serving) {
 document.querySelectorAll('.tab').forEach(t =>
   t.addEventListener('click', () => goTab(t.dataset.tab)));
 $('dash-settings').addEventListener('click', openSettings);
+$('kcal-help').addEventListener('click', openLimitInfo);
+$('info-modal-close').addEventListener('click', closeInfoModal);
+$('info-modal').addEventListener('click', (e) => { if (e.target.id === 'info-modal') closeInfoModal(); });
+fillLimitInfo();
 $('card-workout').addEventListener('click', () => goTab('workout'));
+$('card-weekly').addEventListener('click', openProgress);
+$('prog-close').addEventListener('click', () => goTab('dashboard'));
+$('prog-save').addEventListener('click', bodyLogSave);
 // геро-облако: тап разворачивает/сворачивает длинную реплику
 $('hero-bubble').addEventListener('click', () => $('hero-bubble').classList.toggle('open'));
 // входы в Рыж AI (дашборд / еда / трен)

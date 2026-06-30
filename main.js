@@ -359,6 +359,27 @@ function renderDashboard(d) {
 
   // --- Карточка недельного дефицита ---
   renderWeeklyCard(d.weekly);
+
+  // --- Счётчик воды ---
+  renderWaterCard(d.water);
+}
+
+function renderWaterCard(w) {
+  if (!w) return;
+  const ml = w.ml || 0, target = w.target_ml || 2000;
+  $('water-val').textContent = `${(ml / 1000).toFixed(1)} / ${(target / 1000).toFixed(1)} л`;
+  $('water-bar').style.width = Math.min(100, target ? ml / target * 100 : 0) + '%';
+}
+
+async function logWater(delta) {
+  try {
+    const res = await api('log-water', { delta });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.impactOccurred?.('light');
+    renderWaterCard(res);   // ответ содержит {ml, target_ml}
+  } catch (e) {
+    showStatus('Не вышло: ' + e.message, true, 2500);
+  }
 }
 
 // Goal-aware подпись недельного баланса. lose: «+» = дефицит (хорошо); gain: «−» = профицит
@@ -2609,6 +2630,9 @@ $('card-workout').addEventListener('click', () => goTab('workout'));
 $('card-weekly').addEventListener('click', openProgress);
 $('prog-close').addEventListener('click', () => goTab('dashboard'));
 $('prog-save').addEventListener('click', bodyLogSave);
+$('water-minus').addEventListener('click', () => logWater(-250));
+$('water-add-250').addEventListener('click', () => logWater(250));
+$('water-add-500').addEventListener('click', () => logWater(500));
 // геро-облако: тап разворачивает/сворачивает длинную реплику
 $('hero-bubble').addEventListener('click', () => $('hero-bubble').classList.toggle('open'));
 // входы в Рыж AI (дашборд / еда / трен)

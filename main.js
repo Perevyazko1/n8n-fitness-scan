@@ -2008,6 +2008,7 @@ function toggleRowMenu(it, btn) {
   const actions = [
     { ico: 'edit',   label: 'Изменить',          fn: () => openEditFood(it) },
     { ico: 'meal',   label: 'Перенести в приём', fn: () => openMealPicker(it, btn) },
+    { ico: 'meal',   label: 'Перенести на вчера', fn: () => moveFoodYesterday(it) },
     { ico: 'repeat', label: 'Повторить сегодня',  fn: () => openRepeatFood(it) },
     { ico: 'plus',   label: 'В мои продукты',     fn: () => openAddProduct(it) },
     { ico: 'close',  label: 'Удалить', danger: true, fn: () => deleteFood(it) },
@@ -2053,6 +2054,28 @@ async function changeMeal(it, meal) {
     tg?.HapticFeedback?.selectionChanged?.();
   } catch (e) {
     it.meal_type = prev;         // откат
+    renderFoodList();
+    showStatus('Не вышло: ' + e.message, true, 3000);
+  }
+}
+
+// Перенос записи на предыдущий день (для открытого «сегодня» — на вчера).
+// Запись принадлежит viewDate, цель = viewDate − 1. Оптимистично убираем из
+// текущего дня, при ошибке возвращаем правду с сервера.
+async function moveFoodYesterday(it) {
+  const from = viewDate || serverToday;
+  if (!from) return;
+  const to = addDaysStr(from, -1);
+  const snapshot = currentFood.items.slice();
+  currentFood.items = currentFood.items.filter((x) => x !== it);
+  renderFoodList();
+  try {
+    const res = await api('update-food', { id: it.id, date: to });
+    if (res.ok === false) throw new Error(res.error || 'fail');
+    tg?.HapticFeedback?.notificationOccurred?.('success');
+    showStatus(`Перенесено на ${dayLabel(to, serverToday).toLowerCase()} ✓`, false, 1500);
+  } catch (e) {
+    currentFood.items = snapshot;   // откат
     renderFoodList();
     showStatus('Не вышло: ' + e.message, true, 3000);
   }

@@ -490,6 +490,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .norm-unit { font-size: 11px; color: var(--text-hint); flex: 0 0 auto; }
 .auto-row { display: flex; align-items: center; gap: 10px; }
 .auto-row span { font-size: 15px; }
+.norm-formula { margin: 10px 0; }
+.norm-formula .norm-lab { display: block; font-size: 12px; color: var(--text-hint); margin-bottom: 2px; }
 
 /* ===================== Таб-бар ===================== */
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: flex; height: var(--tabbar-h); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--surface-page); border-top: 1px solid var(--border-hairline); }

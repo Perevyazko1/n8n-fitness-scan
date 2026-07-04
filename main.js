@@ -42,6 +42,21 @@ let currentBarcode = null;
 let currentTab = null;       // dashboard | foodlog | ryzhai | workout | scanner
 let lastKcalTarget = null;   // дневная норма ккал из дашборда — для бюджета на экране «Еда»
 
+// === Отслеживание доменов (питание/тренировки) ===
+// Источник истины — сервер (Profile.*_enabled). Кэшируем в localStorage, чтобы сразу
+// спрятать таб на старте (до загрузки дашборда), по образцу applyTheme.
+const TRACK = { nutrition: true, workout: true };
+try { Object.assign(TRACK, JSON.parse(localStorage.getItem('ryzh-track') || '{}')); } catch {}
+function applyTrackPrefs(p) {
+  if (p && typeof p.nutrition_enabled === 'boolean') TRACK.nutrition = p.nutrition_enabled;
+  if (p && typeof p.workout_enabled === 'boolean') TRACK.workout = p.workout_enabled;
+  try { localStorage.setItem('ryzh-track', JSON.stringify(TRACK)); } catch {}
+  document.querySelectorAll('.tab[data-tab="foodlog"]').forEach(t => t.classList.toggle('hidden', !TRACK.nutrition));
+  document.querySelectorAll('.tab[data-tab="workout"]').forEach(t => t.classList.toggle('hidden', !TRACK.workout));
+  // Активный таб спрятался — уводим на «Главную».
+  if ((currentTab === 'foodlog' && !TRACK.nutrition) || (currentTab === 'workout' && !TRACK.workout)) goTab('dashboard');
+}
+
 // === UI helpers ===
 const $ = id => document.getElementById(id);
 const screens = {
@@ -141,6 +156,8 @@ function endOnboarding() {
 // === Навигация по вкладкам ===
 function goTab(name) {
   if (onboarding) return;   // во время онбординга навигация заблокирована
+  // отключённый домен — таба нет, уводим на «Главную»
+  if ((name === 'foodlog' && !TRACK.nutrition) || (name === 'workout' && !TRACK.workout)) name = 'dashboard';
   if (name !== currentTab) tg?.HapticFeedback?.selectionChanged?.();
   currentTab = name;
   document.querySelectorAll('.tab').forEach(t =>
@@ -288,6 +305,16 @@ function renderDashboard(d) {
     const srv = d.prefs.theme === 'dark' ? 'dark' : 'light';
     if (document.documentElement.dataset.theme !== srv) applyTheme(srv);
   }
+
+  // --- Отслеживание доменов: прячем карточки/бейджи/таб отключённого раздела ---
+  const pr = d.prefs || {};
+  const nOn = pr.nutrition_enabled !== false, wOn = pr.workout_enabled !== false;
+  applyTrackPrefs({ nutrition_enabled: nOn, workout_enabled: wOn });   // синхрон табов + кэш
+  ['card-kcal', 'card-macros', 'card-weekly'].forEach(id => $(id)?.classList.toggle('hidden', !nOn));
+  $('card-workout')?.classList.toggle('hidden', !wOn);
+  $('streak-nutrition')?.classList.toggle('hidden', !nOn);
+  $('streak-workout')?.classList.toggle('hidden', !wOn);
+  $('card-streaks')?.classList.toggle('hidden', !nOn && !wOn);
 
   // --- Маскот-лис: тир тела (мышцы×живот) + эмоция + статус дня ---
   // Тело: fox_m{мышцы}_b{живот}.png; голодный сет (_hungry) — когда за день не ел.
@@ -607,6 +634,13 @@ function fillSettings(d) {
   const theme = d.theme === 'dark' ? 'dark' : 'light';
   $('set-theme').checked = theme === 'dark';
   applyTheme(theme);
+  // отслеживание доменов + формула + учёт активности
+  $('set-track-food').checked = d.nutrition_enabled !== false;
+  $('set-track-workout').checked = d.workout_enabled !== false;
+  $('set-activity-kcal').checked = d.include_activity_kcal !== false;
+  $('set-formula').value = d.calorie_formula === 'harris' ? 'harris' : 'mifflin';
+  applyTrackPrefs({ nutrition_enabled: d.nutrition_enabled !== false,
+                    workout_enabled: d.workout_enabled !== false });
 }
 
 function renderTargets(d) {
@@ -621,7 +655,12 @@ function calcNormsLocal() {
   const h = Number($('set-height').value) || 0, w = Number($('set-weight').value) || 0, a = Number($('set-age').value) || 0;
   const baseline = SET_ACT_BASELINE[$('set-activity').value] ?? 350;
   const gmult = SET_GOAL_MULT[segValue('set-goal-seg')] ?? 1.0;
-  const bmr = Math.round(10 * w + 6.25 * h - 5 * a + (sex === 'm' ? 5 : -161));
+  // BMR по выбранной формуле (зеркалит backend calc._bmr).
+  const bmr = ($('set-formula').value === 'harris')
+    ? Math.round(sex === 'm'
+        ? 88.362 + 13.397 * w + 4.799 * h - 5.677 * a
+        : 447.593 + 9.247 * w + 3.098 * h - 4.330 * a)
+    : Math.round(10 * w + 6.25 * h - 5 * a + (sex === 'm' ? 5 : -161));
   const ref = Math.max(Math.round(bmr * 1.1), Math.round((bmr + baseline) * gmult));
   const tp = Math.round(w * 1.8), tf = Math.round(w * 1.0);
   const tc = Math.max(0, Math.round((ref - tp * 4 - tf * 9) / 4));
@@ -638,8 +677,9 @@ function refreshNorms() {
 function applyAutoState() {
   const auto = $('set-auto').checked;
   ['set-kcal', 'set-protein', 'set-fat', 'set-carbs'].forEach(id => $(id).disabled = auto);
+  const fname = $('set-formula').value === 'harris' ? 'Харриса — Бенедикта' : 'Миффлина — Сан-Жеора';
   $('set-norm-hint').textContent = auto
-    ? 'Формула Миффлина — Сан-Жеора по твоим данным. Меняй параметры выше — пересчёт мгновенный.'
+    ? `Формула ${fname} по твоим данным. Меняй параметры выше — пересчёт мгновенный.`
     : 'Ручной режим — задай значения сам.';
   if (auto) refreshNorms();
 }
@@ -2691,6 +2731,36 @@ $('set-notif').addEventListener('change', (e) => {
   tg?.HapticFeedback?.selectionChanged?.();
   api('prefs-save', { notifications_enabled: e.target.checked }).catch(() => {});
 });
+// Формула калорий: обновить превью/подсказку + сохранить (+ пересчёт в авто-режиме).
+$('set-formula').addEventListener('change', async () => {
+  applyAutoState();   // перерисует норму и подсказку под выбранную формулу
+  try {
+    await api('prefs-save', { calorie_formula: $('set-formula').value });
+    if ($('set-auto').checked) { await api('profile-recalc'); fillSettings(await api('profile')); }
+  } catch {}
+});
+// Учитывать калории активности в лимите — тихо, оптимистично.
+$('set-activity-kcal').addEventListener('change', (e) => {
+  tg?.HapticFeedback?.selectionChanged?.();
+  api('prefs-save', { include_activity_kcal: e.target.checked }).catch(() => {});
+});
+// Отслеживание доменов: при ВЫКЛючении — подтверждение (серия и форма лисёнка обнулятся).
+function bindTrackToggle(id, key, word) {
+  $(id).addEventListener('change', (e) => {
+    const on = e.target.checked;
+    const send = () => {
+      tg?.HapticFeedback?.selectionChanged?.();
+      applyTrackPrefs({ [key + '_enabled']: on });
+      api('prefs-save', { [key + '_enabled']: on }).catch(() => {});
+    };
+    if (on) { send(); return; }
+    const msg = `Серия и форма лисёнка по разделу «${word}» обнулятся. Отключить отслеживание?`;
+    if (tg?.showConfirm) tg.showConfirm(msg, (ok) => { if (ok) send(); else e.target.checked = true; });
+    else if (confirm(msg)) send(); else e.target.checked = true;
+  });
+}
+bindTrackToggle('set-track-food', 'nutrition', 'питание');
+bindTrackToggle('set-track-workout', 'workout', 'тренировки');
 $('reg-bot').addEventListener('click', () => tg?.close?.());
 $('wkt-prev').addEventListener('click', () => stepWktDay(-1));
 $('wkt-next').addEventListener('click', () => stepWktDay(1));
@@ -2747,6 +2817,7 @@ $('ef-cancel').addEventListener('click', () => showScreen('foodlog'));
 
 // Статичные иконки/списки бренд-набором (DOM уже распарсен — main.js в конце body).
 initStaticUi();
+applyTrackPrefs();   // мгновенно спрятать таб(ы) из кэша до загрузки дашборда
 
 // === Старт: профиль не заполнен → онбординг на Настройках, иначе Главная ===
 window.addEventListener('load', boot);

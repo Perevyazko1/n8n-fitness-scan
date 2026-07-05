@@ -17,6 +17,7 @@ Telegram Mini App — сканер штрихкодов для фитнес-бо
 
 Все запросы идут напрямую: камера → OFF API → webhook n8n → Google Sheets. LLM не задействована.
 
+
 ## Деплой
 
 GitHub Pages: Settings → Pages → Deploy from branch `main` / root.

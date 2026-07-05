@@ -240,6 +240,7 @@ function setCalRing(eaten, target) {
 // Ничего не залогировано за день → голодный/усталый; поел → обычный (довольный) вид.
 function foxMood(d) {
   const k = d.kcal || {};
+  if (!TRACK.nutrition) return 'normal';   // не следим за едой — лис не голодает
   if ((k.eaten || 0) <= 0) return 'hungry';
   return 'normal';
 }
@@ -253,23 +254,25 @@ function ryzhVoice(d) {
   const mTier = av.muscle_tier ?? 0, bTier = av.belly_tier ?? 0;
   const left = Math.round(k.left ?? 0);
   const frozen = n.status === 'frozen' || ws.status === 'frozen';
-  if ((k.eaten || 0) <= 0) return pickPhrase(
+  if (TRACK.nutrition && (k.eaten || 0) <= 0) return pickPhrase(
     'Урчит в животе! Закинь, что съел сегодня — и я приободрюсь.',
     'Я голодный как волк… ну, как лис. Запиши первый приём — оживу.');
   if (frozen) return pickPhrase(
     'Серия висит на волоске — отметься, пока я не покрылся инеем.',
     'Ещё чуть-чуть и серия замёрзнет. Залогируй — спасём её.');
-  if ((ws.current || 0) >= 14) return `Тренируемся ${ws.current} дней подряд — мышцы прут, я в топ-форме!`;
-  if (bTier >= 2) return 'Последние дни перебор — я нагулял бочок. Давай аккуратнее, и он сдуется.';
-  if (mTier >= 3) return 'Мышцы в тонусе — держим режим, красавчик!';
-  if ((n.current || 0) >= 7) return `Питание под контролем уже ${n.current} дней — так и держим!`;
-  if (left < 0) return pickPhrase(
+  if (TRACK.workout && (ws.current || 0) >= 14) return `Тренируемся ${ws.current} дней подряд — мышцы прут, я в топ-форме!`;
+  if (TRACK.nutrition && bTier >= 2) return 'Последние дни перебор — я нагулял бочок. Давай аккуратнее, и он сдуется.';
+  if (TRACK.workout && mTier >= 3) return 'Мышцы в тонусе — держим режим, красавчик!';
+  if (TRACK.nutrition && (n.current || 0) >= 7) return `Питание под контролем уже ${n.current} дней — так и держим!`;
+  if (TRACK.nutrition && left < 0) return pickPhrase(
     `Перебрали на ${-left} ккал — бывает. Завтра подровняем, я рядом.`,
     `На ${-left} ккал больше плана. Не страшно — держим курс дальше.`);
-  if (w.is_workout && w.done) return pickPhrase(
+  if (TRACK.workout && w.is_workout && w.done) return TRACK.nutrition ? pickPhrase(
     'Тренировка в кармане, питание в норме — ты сегодня машина!',
-    'Зал закрыт, еда под контролем. Горжусь, честно.');
-  if (left > 0) return pickPhrase(
+    'Зал закрыт, еда под контролем. Горжусь, честно.') : pickPhrase(
+    'Тренировка в кармане — ты сегодня машина!',
+    'Зал закрыт, дело сделано. Горжусь, честно.');
+  if (TRACK.nutrition && left > 0) return pickPhrase(
     `В запасе ещё ${left} ккал — идём ровно, не сбавляй.`,
     `Осталось ${left} ккал на день. Темп отличный, продолжаем.`);
   return pickPhrase(
@@ -285,8 +288,8 @@ function foxStatus(d) {
   const frozen = (st.nutrition && st.nutrition.status === 'frozen')
               || (st.workout && st.workout.status === 'frozen');
   if (frozen) return 'risk';
-  if (left < 0) return 'lost';
-  if (w.is_workout && w.done && (k.eaten || 0) > 0) return 'win';
+  if (TRACK.nutrition && left < 0) return 'lost';
+  if (TRACK.workout && w.is_workout && w.done && (!TRACK.nutrition || (k.eaten || 0) > 0)) return 'win';
   return 'normal';
 }
 

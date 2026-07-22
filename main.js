@@ -442,31 +442,105 @@ function setMacro(key, m, unit) {
 }
 
 // === Рыж AI (подписка PRO) ===
-// Чата в Mini App НЕТ — ассистент живёт в чате Telegram-бота. Здесь только пейволл
-// + переход в чат. Цены/триал — плейсхолдеры (TODO заменить на реальные).
+// Чата в Mini App НЕТ — ассистент живёт в чате Telegram-бота. Здесь пейволл с
+// реальной оплатой (Platega через subscription/create) + переход в чат.
 let aiPlan = 'year';
+let subStatus = null;      // последний ответ subscription/status
+let awaitingPay = false;   // ушли на платёжную страницу — по возврату перепроверить
 
-function renderRyzhAi() {
-  // TODO: когда бэк начнёт отдавать статус подписки (напр. d.prefs.pro) — читать его тут.
-  const pro = false;
-  $('ai-paywall').classList.toggle('hidden', pro);
-  $('ai-subscribed').classList.toggle('hidden', !pro);
+// Ярлык кнопки оплаты по выбранному плану (цена — из тарифов бэка).
+function subCtaLabel() {
+  const spark = (typeof ryzhIcon === 'function') ? ryzhIcon('sparkles', { size: 20, fill: true }) : '';
+  const p = subStatus?.plans?.[aiPlan];
+  const price = p ? `${Number(p.price).toLocaleString('ru-RU')} ₽` : '';
+  return `${spark} Оформить${price ? ' · ' + price : ''}`;
+}
+
+// Привести пейволл к состоянию из subStatus: цены тарифов, доступность кнопки,
+// снятие меток «Скоро», когда оплата реально включена (enabled).
+function applyPaywallState() {
+  const enabled = !!subStatus?.enabled;
+  const plans = subStatus?.plans || null;
+  if (plans) {
+    document.querySelectorAll('#ai-plans .plan-row').forEach(row => {
+      const p = plans[row.dataset.plan];
+      const el = p && row.querySelector('.plan-price');
+      if (el) el.textContent = `${Number(p.price).toLocaleString('ru-RU')} ₽`;
+    });
+  }
+  const btn = $('ai-subscribe');
+  const note = document.querySelector('#ai-paywall .ai-cta-note');
+  if (enabled) {
+    // оплата подключена → снимаем «Скоро» со всех PRO-мест (один общий продукт)
+    document.querySelectorAll('.soon-badge').forEach(s => s.remove());
+    btn.disabled = false;
+    btn.innerHTML = subCtaLabel();
+    if (note) note.textContent = 'Оплата через СБП · безопасно';
+  } else {
+    btn.disabled = true;
+    if (note) note.textContent = 'Оплата подписки скоро будет доступна · в ₽';
+  }
+}
+
+async function renderRyzhAi() {
+  // сначала оптимистично из кэша, потом синхронизируемся с сервером
+  const showActive = (a) => {
+    $('ai-paywall').classList.toggle('hidden', a);
+    $('ai-subscribed').classList.toggle('hidden', !a);
+  };
+  showActive(!!subStatus?.active);
+  try {
+    subStatus = await api('subscription/status');
+  } catch { /* сеть/пусто — оставляем текущее состояние пейволла */ }
+  const active = !!subStatus?.active;
+  if (active) awaitingPay = false;
+  showActive(active);
+  if (!active) applyPaywallState();
 }
 
 function setAiPlan(plan) {
   aiPlan = plan;
   document.querySelectorAll('#ai-plans .plan-row').forEach(r =>
     r.classList.toggle('active', r.dataset.plan === plan));
+  if (subStatus?.enabled) $('ai-subscribe').innerHTML = subCtaLabel();   // цена под план
   tg?.HapticFeedback?.selectionChanged?.();
 }
 
-function aiSubscribe() {
-  // TODO: здесь подключить реальную оплату по плану `aiPlan`. Пока — показываем
-  // экран «PRO активен» с переходом в чат бота (где и живёт ассистент).
-  $('ai-paywall').classList.add('hidden');
-  $('ai-subscribed').classList.remove('hidden');
-  tg?.HapticFeedback?.notificationOccurred?.('success');
+async function aiSubscribe() {
+  if (!subStatus?.enabled) return;   // выключено — кнопка и так disabled
+  const btn = $('ai-subscribe');
+  const label = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = 'Открываю оплату…';
+  try {
+    const res = await api('subscription/create', { plan: aiPlan, method: 'sbp' });
+    if (res?.ok && res.url) {
+      awaitingPay = true;                       // по возврату из оплаты перепроверим статус
+      if (tg?.openLink) tg.openLink(res.url);
+      else window.open(res.url, '_blank');
+    } else if (res?.error === 'payments_disabled') {
+      await renderRyzhAi();                      // на сервере выключили — синхронизируемся
+    } else {
+      throw new Error(res?.detail || res?.error || 'no_url');
+    }
+  } catch (e) {
+    // api() бросает на не-2xx; 503 payments_disabled → синхронизируемся (выключили на сервере)
+    if (String(e?.message) === 'payments_disabled') { await renderRyzhAi(); }
+    else {
+      tg?.HapticFeedback?.notificationOccurred?.('error');
+      try { tg?.showAlert?.('Не удалось открыть оплату. Попробуй ещё раз.'); }
+      catch { alert('Не удалось открыть оплату. Попробуй ещё раз.'); }
+    }
+  } finally {
+    btn.innerHTML = label;
+    btn.disabled = !subStatus?.enabled;
+  }
 }
+
+// Вернулись из платёжной страницы (in-app browser закрылся) → перепроверить подписку.
+window.addEventListener('focus', () => {
+  if (awaitingPay && currentTab === 'ryzhai') renderRyzhAi();
+});
 
 function openRyzhBot() {
   try {
